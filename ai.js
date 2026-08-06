@@ -170,11 +170,6 @@ class GomokuAI {
       return oppVCF;
     }
 
-    // 前 4 步开局阶段使用快速贪心
-    if (game.moveHistory.length <= 4) {
-      return this._mediumMove(game);
-    }
-
     // 初始候选点按攻防启发式排序
     let sortedCandidates = this._sortCandidates(game, candidates, me).slice(0, 15);
 
@@ -306,16 +301,22 @@ class GomokuAI {
   // =============================================
 
   /**
-   * 启发式排序：按（进攻分 + 1.1 * 防守分）降序排列候选点
+   * 启发式排序：按（进攻分 + 动态防守分 + 中心加成）降序排列候选点
+   * 绝对优先封堵对手的任何冲四/活四/五连点
    */
   _sortCandidates(game, candidates, player) {
     const opponent = player === BLACK ? WHITE : BLACK;
     return candidates.map(pos => {
       const attack = this._evaluatePosition(game, pos.row, pos.col, player);
       const defense = this._evaluatePosition(game, pos.row, pos.col, opponent);
+      const centerBonus = 14 - (Math.abs(pos.row - 7) + Math.abs(pos.col - 7));
+      
+      // 面对冲四/活四/五连爆杀威胁，赋予 100 倍绝对防守优先极
+      const defWeight = defense >= 5000 ? 100.0 : (defense >= 1000 ? 10.0 : 1.1);
+
       return {
         pos,
-        score: attack + defense * 1.1
+        score: attack + defense * defWeight + centerBonus
       };
     }).sort((a, b) => b.score - a.score);
   }
@@ -403,11 +404,17 @@ class GomokuAI {
       myLineStr += 'X';
       oppLineStr += 'X';
 
-      myScore += this._scoreDirStr(myLineStr);
-      oppScore += this._scoreDirStr(oppLineStr);
+      const sMe = this._scoreDirStr(myLineStr);
+      const sOpp = this._scoreDirStr(oppLineStr);
+
+      myScore += sMe;
+      // 若敌方留有活四或活三，极大化惩罚分数（防止地平线效应漏防）
+      if (sOpp >= 10000) oppScore += sOpp * 3.0;
+      else if (sOpp >= 1000) oppScore += sOpp * 2.0;
+      else oppScore += sOpp;
     }
 
-    return myScore - oppScore * 1.1;
+    return myScore - oppScore * 1.25;
   }
 
   /**
