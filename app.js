@@ -197,9 +197,10 @@
     if (mode === 'pve' && game.currentPlayer === WHITE) {
       aiThinking = true;
       updateUI();
-      // 延迟以显示动画
+      // 延迟以显示落子动画
       setTimeout(() => {
-        const aiMove = ai.getMove(game);
+        // 限制 PvE 模式 AI 思考上限为 800ms，兼顾深搜实力与极速流畅体验
+        const aiMove = ai.getMove(game, 800);
         const aiResult = game.placeStone(aiMove.row, aiMove.col);
         lastMovePos = { row: aiMove.row, col: aiMove.col };
         aiThinking = false;
@@ -211,7 +212,7 @@
         if (aiResult.winner !== undefined) {
           onGameEnd(aiResult);
         }
-      }, 300);
+      }, 200);
     }
   }
 
