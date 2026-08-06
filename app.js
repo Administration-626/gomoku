@@ -30,7 +30,7 @@
   let canvas, ctx;
   let $playerBlack, $playerWhite, $moveHistory, $statusText, $winOverlay, $winText;
   let $btnPvP, $btnPvE, $btnEve, $btnUndo, $btnRestart, $btnRestartOverlay;
-  let $aiSettings, $eveSettings, $btnEveStart;
+  let $aiSettings, $eveSettings, $btnEveStart, $btnPvEStart;
   let $diffButtons, $playerColorButtons, $eveBlackButtons, $eveWhiteButtons, $eveSpeed, $pveSpeed;
   let $chkFoul, $foulToast, foulToastTimer;
   let $statBlack, $statWhite, $statDraw;
@@ -101,6 +101,7 @@
     $aiSettings = document.getElementById('ai-settings');
     $eveSettings = document.getElementById('eve-settings');
     $btnEveStart = document.getElementById('btn-eve-start');
+    $btnPvEStart = document.getElementById('btn-pve-start');
     $diffButtons = document.querySelectorAll('.btn-diff');
     $playerColorButtons = document.querySelectorAll('.btn-player-color');
     $eveBlackButtons = document.querySelectorAll('.btn-eve-black');
@@ -189,6 +190,13 @@
         eveWhiteAI = new GomokuAI(btn.dataset.level);
       });
     });
+
+    // PvE 让 AI 下第一步按钮
+    if ($btnPvEStart) {
+      $btnPvEStart.addEventListener('click', () => {
+        triggerAIMoveIfNeeded();
+      });
+    }
 
     // EVE 开始按钮
     if ($btnEveStart) {
@@ -361,9 +369,6 @@
     if ($winOverlay) $winOverlay.classList.add('hidden');
     render();
     updateUI();
-
-    // 若玩家执白后手，AI 自动执黑下开局第一子
-    triggerAIMoveIfNeeded();
   }
 
   function setMode(newMode) {
@@ -796,10 +801,28 @@
   function updateUI() {
     updatePlayerNames();
 
-    // 禁手规则复选框：对局开始后禁用修改，重置后恢复
+    const isPlaying = (game.moveHistory.length > 0 && !game.gameOver) || eveRunning;
+
+    // 1. 禁手规则复选框
     if ($chkFoul) {
       $chkFoul.checked = game.enableFoul;
-      $chkFoul.disabled = (game.moveHistory.length > 0 && !game.gameOver);
+      $chkFoul.disabled = isPlaying;
+    }
+
+    // 2. 模式与难度/执子按钮锁死（对局进行中不允许切换难度或对战模式）
+    if ($btnPvP) $btnPvP.disabled = isPlaying;
+    if ($btnPvE) $btnPvE.disabled = isPlaying;
+    if ($btnEve) $btnEve.disabled = isPlaying;
+    $playerColorButtons.forEach(btn => btn.disabled = isPlaying);
+    $diffButtons.forEach(btn => btn.disabled = isPlaying);
+    $eveBlackButtons.forEach(btn => btn.disabled = isPlaying);
+    $eveWhiteButtons.forEach(btn => btn.disabled = isPlaying);
+    if ($pveSpeed) $pveSpeed.disabled = isPlaying;
+
+    // 3. 人机模式让 AI 先手按钮控制
+    if ($btnPvEStart) {
+      const showAiStartBtn = (mode === 'pve' && playerColor === WHITE && game.moveHistory.length === 0 && !aiThinking);
+      $btnPvEStart.classList.toggle('hidden', !showAiStartBtn);
     }
 
     // 当前玩家高亮（EVE 模式下不闪烁）
@@ -821,6 +844,8 @@
           const pauseHint = evePaused ? ' (已暂停，点击棋盘继续)' : '';
           $statusText.textContent = `第 ${moveCount} 手${pauseHint}`;
         }
+      } else if (mode === 'pve' && game.moveHistory.length === 0 && playerColor === WHITE) {
+        $statusText.textContent = '选好规则后，点击「🚀 让 AI 下第一步」';
       } else if (aiThinking) {
         $statusText.innerHTML = 'AI 思考中...<span class="ai-thinking-indicator"></span>';
       } else {
