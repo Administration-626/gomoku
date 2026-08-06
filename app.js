@@ -501,15 +501,15 @@
     replayStep = savedHistory.length;
 
     if (result.draw) {
-      $winText.textContent = '平局！';
+      $winText.textContent = '握手言和 (平局)';
       $winText.style.color = 'var(--text-primary)';
       stats.draw++;
     } else if (result.winner === BLACK) {
-      $winText.textContent = '🖤 黑方获胜！';
+      $winText.textContent = '🏆 黑方获胜！';
       $winText.style.color = 'var(--win-black)';
       stats.black++;
     } else {
-      $winText.textContent = '🤍 白方获胜！';
+      $winText.textContent = '🏆 白方获胜！';
       $winText.style.color = 'var(--win-white)';
       stats.white++;
     }
