@@ -119,30 +119,35 @@ class GomokuAI {
       return { row: Math.floor(BOARD_SIZE / 2), col: Math.floor(BOARD_SIZE / 2) };
     }
 
-    let bestMove = candidates[0];
-    let maxScore = -Infinity;
+    const emptyPositions = this._getNearbyEmpty(game, 2);
+    if (emptyPositions.length === 0) {
+      return { row: Math.floor(BOARD_SIZE / 2), col: Math.floor(BOARD_SIZE / 2) };
+    }
 
     const me = game.currentPlayer;
     const opponent = me === BLACK ? WHITE : BLACK;
 
-    for (const pos of candidates) {
-      // 进攻分：我下这里形成的最高棋型分
-      const attackScore = this._evaluatePosition(game, pos.row, pos.col, me);
-      // 防守分（1.1倍偏重防守：对手下这里能形成的棋型，优先堵对手）
-      const defenseScore = this._evaluatePosition(game, pos.row, pos.col, opponent);
+    const scoredMoves = [];
 
-      // 中心倾向微调分 (0~14)，防止平分时随机选点
+    for (const pos of emptyPositions) {
+      const myScore = this._evaluatePosition(game, pos.row, pos.col, me);
+      const oppScore = this._evaluatePosition(game, pos.row, pos.col, opponent);
+
+      // 中等 AI 策略：进攻分 + 对手防守分 * 1.1 + 中心位置偏好
       const centerBonus = 14 - (Math.abs(pos.row - 7) + Math.abs(pos.col - 7));
+      const totalScore = myScore + oppScore * 1.1 + centerBonus;
 
-      const totalScore = attackScore + defenseScore * 1.1 + centerBonus;
-
-      if (totalScore > maxScore) {
-        maxScore = totalScore;
-        bestMove = pos;
-      }
+      scoredMoves.push({ pos, score: totalScore });
     }
 
-    return bestMove;
+    scoredMoves.sort((a, b) => b.score - a.score);
+
+    const topScore = scoredMoves[0].score;
+    // 若在 Top 3 候选点中得分相差在 5% 以内，随机挑选其一
+    const topCandidates = scoredMoves.filter(m => Math.abs(m.score - topScore) < (Math.abs(topScore) * 0.05 + 10)).slice(0, 3);
+    const selected = topCandidates[Math.floor(Math.random() * topCandidates.length)];
+
+    return selected ? selected.pos : scoredMoves[0].pos;
   }
 
   // =============================================
