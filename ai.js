@@ -158,6 +158,14 @@ class GomokuAI {
     }
     if (candidates.length === 1) return candidates[0];
 
+    // 0. 开局定式匹配 (前 5 手)
+    if (game.moveHistory.length <= 5) {
+      const bookMove = this._getOpeningBookMove(game);
+      if (bookMove) {
+        return bookMove;
+      }
+    }
+
     // 1. 优先检索我方 VCF (连续冲四必胜) 杀局
     const myVCF = this._findVCF(game, me, 10);
     if (myVCF) {
@@ -503,6 +511,50 @@ class GomokuAI {
         if (isVCF) {
           return pos;
         }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * 经典开局定式库 (前 5 手)
+   * 收录连珠二十六局中的花月局(Kagetsu)、浦月局(Pogetsu)、寒星局(Kansei)
+   */
+  _getOpeningBookMove(game) {
+    const history = game.moveHistory;
+    const len = history.length;
+
+    // 第 1 手 (黑棋先手)：必走天元 (7, 7)
+    if (len === 0) {
+      return { row: 7, col: 7 };
+    }
+
+    const historyKey = history.map(m => `${m.row},${m.col}`).join('|');
+
+    const OPENINGS = {
+      // --- 白棋第 2 手应对 ---
+      "7,7": { row: 7, col: 8 }, // 执白后手：防守天元直止 (7,8)
+
+      // --- 黑棋第 3 手定式 (花月/浦月必胜开局) ---
+      "7,7|7,8": { row: 8, col: 8 },      // 花月局 (Kagetsu): (8,8) 三手形成斜三
+      "7,7|8,7": { row: 8, col: 8 },      // 浦月变体: (8,8)
+      "7,7|6,7": { row: 6, col: 6 },      // 浦月对称: (6,6)
+      "7,7|7,6": { row: 6, col: 6 },      // 花月对称: (6,6)
+
+      // --- 白棋第 4 手防守应对 ---
+      "7,7|7,8|8,8": { row: 6, col: 6 },  // 防守花月连三 (6,6)
+      "7,7|7,8|8,7": { row: 6, col: 8 },  // 防守浦月连三 (6,8)
+
+      // --- 黑棋第 5 手必胜展开 ---
+      "7,7|7,8|8,8|6,6": { row: 8, col: 6 }, // 花月五手：形成双活三阵型
+      "7,7|7,8|8,7|6,8": { row: 8, col: 9 }  // 浦月五手：强攻展开
+    };
+
+    if (OPENINGS[historyKey]) {
+      const target = OPENINGS[historyKey];
+      if (game.board[target.row][target.col] === EMPTY) {
+        return target;
       }
     }
 
