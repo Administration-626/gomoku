@@ -197,22 +197,31 @@
     if (mode === 'pve' && game.currentPlayer === WHITE) {
       aiThinking = true;
       updateUI();
-      // 延迟以显示落子动画
+
+      const pveStart = Date.now();
       setTimeout(() => {
-        // 限制 PvE 模式 AI 思考上限为 800ms，兼顾深搜实力与极速流畅体验
+        // 限制思考上限 800ms
         const aiMove = ai.getMove(game, 800);
-        const aiResult = game.placeStone(aiMove.row, aiMove.col);
-        lastMovePos = { row: aiMove.row, col: aiMove.col };
-        aiThinking = false;
-        
-        stoneAnimStart = performance.now();
-        requestAnimationFrame(animLoop);
-        
-        updateUI();
-        if (aiResult.winner !== undefined) {
-          onGameEnd(aiResult);
-        }
-      }, 200);
+        const elapsed = Date.now() - pveStart;
+
+        // 拟真延迟：保证最小思考间隔为 350ms，避免瞬间秒下导致的突兀感
+        const MIN_DELAY = 350;
+        const remainDelay = Math.max(0, MIN_DELAY - elapsed);
+
+        setTimeout(() => {
+          const aiResult = game.placeStone(aiMove.row, aiMove.col);
+          lastMovePos = { row: aiMove.row, col: aiMove.col };
+          aiThinking = false;
+
+          stoneAnimStart = performance.now();
+          requestAnimationFrame(animLoop);
+
+          updateUI();
+          if (aiResult.winner !== undefined) {
+            onGameEnd(aiResult);
+          }
+        }, remainDelay);
+      }, 50);
     }
   }
 
