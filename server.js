@@ -63,10 +63,28 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(PORT, () => {
-  console.log(`====================================================`);
-  console.log(` Gomoku Dev Server is running live with No-Cache!   `);
-  console.log(` Access URL: http://localhost:${PORT}             `);
-  console.log(` Local Path: ${__dirname}                          `);
-  console.log(`====================================================`);
+let currentPort = parseInt(PORT, 10);
+
+function startServer(port) {
+  server.listen(port, () => {
+    console.log(`====================================================`);
+    console.log(` Gomoku Dev Server is running live with No-Cache!   `);
+    console.log(` Access URL: http://localhost:${port}             `);
+    console.log(` Local Path: ${__dirname}                          `);
+    console.log(`====================================================`);
+  });
+}
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.warn(`[Server Notice] 端口 ${currentPort} 已被后台服务占用，正在自动切换至下一个空闲端口 http://localhost:${currentPort + 1}...`);
+    currentPort++;
+    setTimeout(() => {
+      startServer(currentPort);
+    }, 200);
+  } else {
+    console.error('[Server Error]', err);
+  }
 });
+
+startServer(currentPort);
