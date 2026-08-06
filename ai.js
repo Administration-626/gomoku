@@ -245,6 +245,16 @@ class GomokuAI {
       }
     }
 
+    // 搜完后：在得分处于 Top 3 且差距极小的顶尖候选点中加权随机选择，避免机械式固定重复
+    if (sortedCandidates.length > 1 && globalBestScore < this.SCORES.FIVE) {
+      const topScore = sortedCandidates[0].score;
+      const topCandidates = sortedCandidates.filter(c => Math.abs(c.score - topScore) < Math.abs(topScore) * 0.05).slice(0, 3);
+      if (topCandidates.length > 1) {
+        const randomIndex = Math.floor(Math.random() * topCandidates.length);
+        globalBestMove = topCandidates[randomIndex].pos;
+      }
+    }
+
     return globalBestMove || this._mediumMove(game);
   }
 
@@ -554,28 +564,36 @@ class GomokuAI {
     const historyKey = history.map(m => `${m.row},${m.col}`).join('|');
 
     const OPENINGS = {
-      // --- 白棋第 2 手应对 ---
-      "7,7": { row: 7, col: 8 }, // 执白后手：防守天元直止 (7,8)
+      // --- 白棋第 2 手应对 (直止 7,8 与 斜止 8,8 随机防守) ---
+      "7,7": [
+        { row: 7, col: 8 },
+        { row: 8, col: 8 }
+      ],
 
-      // --- 黑棋第 3 手定式 (花月/浦月必胜开局) ---
-      "7,7|7,8": { row: 8, col: 8 },      // 花月局 (Kagetsu): (8,8) 三手形成斜三
-      "7,7|8,7": { row: 8, col: 8 },      // 浦月变体: (8,8)
-      "7,7|6,7": { row: 6, col: 6 },      // 浦月对称: (6,6)
-      "7,7|7,6": { row: 6, col: 6 },      // 花月对称: (6,6)
+      // --- 黑棋第 3 手定式 (花月局/浦月局/寒星局 随机变换) ---
+      "7,7|7,8": [
+        { row: 8, col: 8 }, // 花月局 (Kagetsu): 斜三
+        { row: 8, col: 7 }  // 浦月局 (Pogetsu): 直三
+      ],
+      "7,7|8,8": [
+        { row: 7, col: 8 }, // 寒星局 (Kansei)
+        { row: 8, col: 7 }  // 剑月局
+      ],
 
       // --- 白棋第 4 手防守应对 ---
-      "7,7|7,8|8,8": { row: 6, col: 6 },  // 防守花月连三 (6,6)
-      "7,7|7,8|8,7": { row: 6, col: 8 },  // 防守浦月连三 (6,8)
+      "7,7|7,8|8,8": [{ row: 6, col: 6 }, { row: 9, col: 9 }],
+      "7,7|7,8|8,7": [{ row: 6, col: 8 }, { row: 9, col: 7 }],
 
       // --- 黑棋第 5 手必胜展开 ---
-      "7,7|7,8|8,8|6,6": { row: 8, col: 6 }, // 花月五手：形成双活三阵型
-      "7,7|7,8|8,7|6,8": { row: 8, col: 9 }  // 浦月五手：强攻展开
+      "7,7|7,8|8,8|6,6": [{ row: 8, col: 6 }, { row: 6, col: 8 }],
+      "7,7|7,8|8,7|6,8": [{ row: 8, col: 9 }, { row: 9, col: 8 }]
     };
 
     if (OPENINGS[historyKey]) {
-      const target = OPENINGS[historyKey];
-      if (game.board[target.row][target.col] === EMPTY) {
-        return target;
+      const targets = Array.isArray(OPENINGS[historyKey]) ? OPENINGS[historyKey] : [OPENINGS[historyKey]];
+      const validTargets = targets.filter(t => game.board[t.row][t.col] === EMPTY);
+      if (validTargets.length > 0) {
+        return validTargets[Math.floor(Math.random() * validTargets.length)];
       }
     }
 
