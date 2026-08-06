@@ -344,22 +344,11 @@
 
     if (mode === 'pve') {
       $aiSettings.classList.remove('hidden');
-      if (playerColor === BLACK) {
-        document.getElementById('black-name').textContent = '玩家 1 (黑)';
-        document.getElementById('white-name').textContent = 'AI (白)';
-      } else {
-        document.getElementById('black-name').textContent = 'AI (黑)';
-        document.getElementById('white-name').textContent = '玩家 1 (白)';
-      }
     } else if (mode === 'eve') {
       $eveSettings.classList.remove('hidden');
-      document.getElementById('black-name').textContent = 'AI (黑)';
-      document.getElementById('white-name').textContent = 'AI (白)';
-    } else {
-      document.getElementById('black-name').textContent = '玩家 1 (黑)';
-      document.getElementById('white-name').textContent = '玩家 2 (白)';
     }
 
+    updatePlayerNames();
     onRestart();
   }
 
@@ -748,7 +737,31 @@
   // ========================
   // UI 同步
   // ========================
+  function updatePlayerNames() {
+    const $blackName = document.getElementById('black-name');
+    const $whiteName = document.getElementById('white-name');
+    if (!$blackName || !$whiteName) return;
+
+    if (mode === 'pve') {
+      if (playerColor === BLACK) {
+        $blackName.textContent = '玩家 1 (黑)';
+        $whiteName.textContent = 'AI (白)';
+      } else {
+        $blackName.textContent = 'AI (黑)';
+        $whiteName.textContent = '玩家 1 (白)';
+      }
+    } else if (mode === 'eve') {
+      $blackName.textContent = 'AI (黑)';
+      $whiteName.textContent = 'AI (白)';
+    } else {
+      $blackName.textContent = '玩家 1 (黑)';
+      $whiteName.textContent = '玩家 2 (白)';
+    }
+  }
+
   function updateUI() {
+    updatePlayerNames();
+
     // 当前玩家高亮（EVE 模式下不闪烁）
     if (mode === 'eve') {
       if ($playerBlack) $playerBlack.classList.remove('active');
