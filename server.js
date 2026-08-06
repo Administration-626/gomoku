@@ -17,6 +17,20 @@ const MIME_TYPES = {
 const server = http.createServer((req, res) => {
   console.log(`[${new Date().toLocaleTimeString()}] ${req.method} ${req.url}`);
 
+  // 自动同步游戏状态接口
+  if (req.method === 'POST' && req.url === '/api/sync-game-state') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      fs.writeFile(path.join(__dirname, '.active_game.json'), body, err => {
+        if (err) console.error('[AutoSync Error]', err);
+      });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true }));
+    });
+    return;
+  }
+
   let filePath = path.join(__dirname, req.url === '/' ? 'index.html' : req.url);
   filePath = path.normalize(filePath);
 

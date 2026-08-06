@@ -838,8 +838,42 @@
     }
   }
 
+  let syncTimer = null;
+  function autoSyncGameState() {
+    if (syncTimer) clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => {
+      const historyNotation = game.moveHistory.map((m, idx) => {
+        const playerStr = m.player === BLACK ? '⚫' : '⚪';
+        const colStr = String.fromCharCode(65 + m.col);
+        const rowStr = 15 - m.row;
+        return `${idx + 1}. ${playerStr} ${colStr}${rowStr} (row:${m.row}, col:${m.col})`;
+      });
+
+      const data = {
+        updatedAt: new Date().toISOString(),
+        mode: mode,
+        playerColor: playerColor === BLACK ? 'BLACK' : 'WHITE',
+        enableFoul: game.enableFoul,
+        aiLevel: ai ? ai.level : 'medium',
+        pveSpeed: $pveSpeed ? $pveSpeed.value : '500',
+        gameOver: game.gameOver,
+        winner: game.winner,
+        moveCount: game.moveHistory.length,
+        moveHistory: game.moveHistory,
+        formattedMoves: historyNotation
+      };
+
+      fetch('/api/sync-game-state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data, null, 2)
+      }).catch(() => {});
+    }, 150);
+  }
+
   function updateUI() {
     updatePlayerNames();
+    autoSyncGameState();
 
     const isPlaying = (game.moveHistory.length > 0 && !game.gameOver) || eveRunning;
 
