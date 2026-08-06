@@ -150,12 +150,25 @@ class GomokuAI {
   // =============================================
   _hardMove(game) {
     const me = game.currentPlayer;
+    const opponent = me === BLACK ? WHITE : BLACK;
     const candidates = this._getNearbyEmpty(game, 2);
 
     if (candidates.length === 0) {
       return { row: Math.floor(BOARD_SIZE / 2), col: Math.floor(BOARD_SIZE / 2) };
     }
     if (candidates.length === 1) return candidates[0];
+
+    // 1. 优先检索我方 VCF (连续冲四必胜) 杀局
+    const myVCF = this._findVCF(game, me, 10);
+    if (myVCF) {
+      return myVCF;
+    }
+
+    // 2. 检索对手 VCF 必胜点，若有则强行阻断起手式
+    const oppVCF = this._findVCF(game, opponent, 10);
+    if (oppVCF) {
+      return oppVCF;
+    }
 
     // 前 4 步开局阶段使用快速贪心
     if (game.moveHistory.length <= 4) {
@@ -421,6 +434,63 @@ class GomokuAI {
     if (/X11000|00011X|X10100|00101X/.test(s)) return 10;
 
     return 0;
+  }
+
+  /**
+   * VCF (Victory by Continuous Four) 算杀引擎
+   * 搜索深达 10 步的连续冲四必胜连招
+   */
+  _findVCF(game, attacker, maxDepth = 10) {
+    const defender = attacker === BLACK ? WHITE : BLACK;
+    const candidates = this._getNearbyEmpty(game, 2);
+
+    for (const pos of candidates) {
+      const attackScore = this._evaluatePosition(game, pos.row, pos.col, attacker);
+      // 只搜索能形成冲四/活四的分支
+      if (attackScore >= this.SCORES.RUSH_FOUR) {
+        game.board[pos.row][pos.col] = attacker;
+
+        // 如果直接形成五连或活四，必然连胜获胜
+        if (game._checkWin(pos.row, pos.col, attacker) || attackScore >= this.SCORES.LIVE_FOUR) {
+          game.board[pos.row][pos.col] = EMPTY;
+          return pos;
+        }
+
+        // 找出对手必须强行封堵的所有解
+        const defBlocks = [];
+        for (const defPos of candidates) {
+          if (defPos.row === pos.row && defPos.col === pos.col) continue;
+          if (game.board[defPos.row][defPos.col] !== EMPTY) continue;
+          if (this._evaluatePosition(game, defPos.row, defPos.col, attacker) >= this.SCORES.FIVE) {
+            defBlocks.push(defPos);
+          }
+        }
+
+        let isVCF = true;
+        if (defBlocks.length === 0 || maxDepth <= 1) {
+          isVCF = false;
+        } else {
+          for (const blockPos of defBlocks) {
+            game.board[blockPos.row][blockPos.col] = defender;
+            const subVCF = this._findVCF(game, attacker, maxDepth - 2);
+            game.board[blockPos.row][blockPos.col] = EMPTY;
+
+            if (!subVCF) {
+              isVCF = false;
+              break;
+            }
+          }
+        }
+
+        game.board[pos.row][pos.col] = EMPTY;
+
+        if (isVCF) {
+          return pos;
+        }
+      }
+    }
+
+    return null;
   }
 }
 
