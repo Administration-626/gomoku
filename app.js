@@ -42,7 +42,7 @@
   // ========================
   let game = new GomokuGame();
   let ai = new GomokuAI('medium');
-  let mode = 'pvp';          // 'pvp' | 'pve' | 'eve'
+  let mode = 'pve';          // 默认开启人机对弈 'pve'
   let aiThinking = false;
   let hoverPos = null;        // 鼠标悬停位置 {row, col}
   let lastMovePos = null;     // 最后一步位置
@@ -181,7 +181,8 @@
       });
     }
 
-    // 首次渲染
+    // 首次初始化为缺省人机模式
+    setMode('pve');
     render();
     updateUI();
   }
