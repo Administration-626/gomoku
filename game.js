@@ -223,36 +223,55 @@ class GomokuGame {
     return false;
   }
 
-  /** 统计落子点参与形成的“四”（冲四和活四）的数量 */
+  /**
+   * 统计落子点参与形成的“四”（冲四和活四）的数量
+   * 只扫描落子点延伸出的 4 个方向向量（极速 O(1) 局部线扫描）
+   */
   _countFours(row, col) {
     let fourCount = 0;
-    for (let r = 0; r < BOARD_SIZE; r++) {
-      for (let c = 0; c < BOARD_SIZE; c++) {
-        if (this.board[r][c] === EMPTY) {
-          this.board[r][c] = BLACK;
-          if (this._checkExactFive(row, col)) {
-            fourCount++;
-          }
-          this.board[r][c] = EMPTY;
+    for (const [dx, dy] of DIRECTIONS) {
+      let s = '';
+      for (let i = -4; i <= 4; i++) {
+        const r = row + dy * i, c = col + dx * i;
+        if (!this._inBounds(r, c)) {
+          s += 'X';
+        } else if (r === row && c === col) {
+          s += '1';
+        } else {
+          const st = this.board[r][c];
+          s += st === BLACK ? '1' : (st === WHITE ? 'X' : '0');
         }
+      }
+      // 冲四或活四棋型匹配
+      if (/01111|11110|10111|11011|11101/.test(s) && !s.includes('111111')) {
+        fourCount++;
       }
     }
     return fourCount;
   }
 
-  /** 统计落子点参与形成的“活三”的数量 */
+  /**
+   * 统计落子点参与形成的“活三”的数量
+   * 只扫描落子点延伸出的 4 个方向向量（极速 O(1) 局部线扫描）
+   */
   _countOpenThrees(row, col) {
     let openThreeCount = 0;
-    for (let r = 0; r < BOARD_SIZE; r++) {
-      for (let c = 0; c < BOARD_SIZE; c++) {
-        if (this.board[r][c] === EMPTY) {
-          this.board[r][c] = BLACK;
-          // 填入该空点后，如果能形成一个合法的“四”（非禁手），且不是长连
-          if (!this._checkOverline(row, col) && this._countFours(row, col) === 1) {
-            openThreeCount++;
-          }
-          this.board[r][c] = EMPTY;
+    for (const [dx, dy] of DIRECTIONS) {
+      let s = '';
+      for (let i = -4; i <= 4; i++) {
+        const r = row + dy * i, c = col + dx * i;
+        if (!this._inBounds(r, c)) {
+          s += 'X';
+        } else if (r === row && c === col) {
+          s += '1';
+        } else {
+          const st = this.board[r][c];
+          s += st === BLACK ? '1' : (st === WHITE ? 'X' : '0');
         }
+      }
+      // 活三棋型匹配
+      if (/01110|010110|011010/.test(s)) {
+        openThreeCount++;
       }
     }
     return openThreeCount;
