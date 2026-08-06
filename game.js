@@ -34,13 +34,14 @@ class GomokuGame {
     this.gameOver = false;
     this.winner = EMPTY;       // 0=无, 1=黑胜, 2=白胜
     this.winLine = [];         // 获胜连线坐标 [{row, col}, ...]
+    this.enableFoul = false;   // 默认关闭禁手规则
   }
 
   /**
    * 落子
    * @param {number} row
    * @param {number} col
-   * @returns {{ success: boolean, winner?: number, winLine?: Array }}
+   * @returns {{ success: boolean, winner?: number, winLine?: Array, foulType?: string, message?: string }}
    */
   placeStone(row, col) {
     if (this.gameOver) return { success: false, reason: 'game_over' };
@@ -48,6 +49,25 @@ class GomokuGame {
     if (this.board[row][col] !== EMPTY) return { success: false, reason: 'occupied' };
 
     const player = this.currentPlayer;
+
+    // 禁手检测（仅黑棋开启禁手规则时触发）
+    if (player === BLACK && this.enableFoul) {
+      const foulType = this.checkFoul(row, col, BLACK);
+      if (foulType) {
+        let foulName = '禁手';
+        if (foulType === 'OVERLINE') foulName = '长连禁手 (六连或以上)';
+        else if (foulType === 'DOUBLE_FOUR') foulName = '四四禁手';
+        else if (foulType === 'DOUBLE_THREE') foulName = '三三禁手';
+
+        return {
+          success: false,
+          reason: 'foul',
+          foulType,
+          message: `⚠️ 此处为【${foulName}】，黑棋不可落子！`
+        };
+      }
+    }
+
     this.board[row][col] = player;
     this.moveHistory.push({ row, col, player });
 
@@ -121,6 +141,121 @@ class GomokuGame {
 
   _inBounds(row, col) {
     return row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE;
+  }
+
+  /**
+   * 禁手判定：判定黑棋在 (row, col) 落子是否构成禁手
+   * @param {number} row 
+   * @param {number} col 
+   * @param {number} player 
+   * @returns {'OVERLINE' | 'DOUBLE_FOUR' | 'DOUBLE_THREE' | null}
+   */
+  checkFoul(row, col, player = BLACK) {
+    if (!this.enableFoul || player !== BLACK) return null;
+    if (this.board[row][col] !== EMPTY) return null;
+
+    // 假设落子
+    this.board[row][col] = BLACK;
+
+    // 1. 五连豁免：若恰好形成 5 连，为合法获胜，不判禁手
+    if (this._checkExactFive(row, col)) {
+      this.board[row][col] = EMPTY;
+      return null;
+    }
+
+    // 2. 长连禁手：形成 6 连或以上
+    if (this._checkOverline(row, col)) {
+      this.board[row][col] = EMPTY;
+      return 'OVERLINE';
+    }
+
+    // 3. 四四禁手：形成 2 个或以上的冲四/活四
+    if (this._countFours(row, col) >= 2) {
+      this.board[row][col] = EMPTY;
+      return 'DOUBLE_FOUR';
+    }
+
+    // 4. 三三禁手：形成 2 个或以上的活三
+    if (this._countOpenThrees(row, col) >= 2) {
+      this.board[row][col] = EMPTY;
+      return 'DOUBLE_THREE';
+    }
+
+    this.board[row][col] = EMPTY;
+    return null;
+  }
+
+  /** 是否恰好 5 连 */
+  _checkExactFive(row, col) {
+    for (const [dx, dy] of DIRECTIONS) {
+      let count = 1;
+      for (let i = 1; i < 6; i++) {
+        const r = row + dy * i, c = col + dx * i;
+        if (this._inBounds(r, c) && this.board[r][c] === BLACK) count++;
+        else break;
+      }
+      for (let i = 1; i < 6; i++) {
+        const r = row - dy * i, c = col - dx * i;
+        if (this._inBounds(r, c) && this.board[r][c] === BLACK) count++;
+        else break;
+      }
+      if (count === 5) return true;
+    }
+    return false;
+  }
+
+  /** 是否长连 (>= 6) */
+  _checkOverline(row, col) {
+    for (const [dx, dy] of DIRECTIONS) {
+      let count = 1;
+      for (let i = 1; i < 7; i++) {
+        const r = row + dy * i, c = col + dx * i;
+        if (this._inBounds(r, c) && this.board[r][c] === BLACK) count++;
+        else break;
+      }
+      for (let i = 1; i < 7; i++) {
+        const r = row - dy * i, c = col - dx * i;
+        if (this._inBounds(r, c) && this.board[r][c] === BLACK) count++;
+        else break;
+      }
+      if (count >= 6) return true;
+    }
+    return false;
+  }
+
+  /** 统计落子点参与形成的“四”（冲四和活四）的数量 */
+  _countFours(row, col) {
+    let fourCount = 0;
+    for (let r = 0; r < BOARD_SIZE; r++) {
+      for (let c = 0; c < BOARD_SIZE; c++) {
+        if (this.board[r][c] === EMPTY) {
+          this.board[r][c] = BLACK;
+          if (this._checkExactFive(row, col)) {
+            fourCount++;
+          }
+          this.board[r][c] = EMPTY;
+        }
+      }
+    }
+    return fourCount;
+  }
+
+  /** 统计落子点参与形成的“活三”的数量 */
+  _countOpenThrees(row, col) {
+    let openThreeCount = 0;
+    for (let r = 0; r < BOARD_SIZE; r++) {
+      for (let c = 0; c < BOARD_SIZE; c++) {
+        if (this.board[r][c] === EMPTY) {
+          this.board[r][c] = BLACK;
+          // 填入该空点后，如果能形成一个合法的“四”（非禁手），且不是长连
+          if (!this._checkOverline(row, col) && this._countFours(row, col) === 1) {
+            openThreeCount++;
+          }
+          this.board[r][c] = EMPTY;
+        }
+      }
+    }
+    return openThreeCount;
   }
 
   /** 获取指定位置的棋子 */

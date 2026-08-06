@@ -323,7 +323,14 @@ class GomokuAI {
    */
   _sortCandidates(game, candidates, player) {
     const opponent = player === BLACK ? WHITE : BLACK;
-    return candidates.map(pos => {
+    const validCandidates = candidates.filter(pos => {
+      if (player === BLACK && game.enableFoul && typeof game.checkFoul === 'function') {
+        return !game.checkFoul(pos.row, pos.col, BLACK);
+      }
+      return true;
+    });
+
+    return validCandidates.map(pos => {
       const attack = this._evaluatePosition(game, pos.row, pos.col, player);
       const defense = this._evaluatePosition(game, pos.row, pos.col, opponent);
       const centerBonus = 14 - (Math.abs(pos.row - 7) + Math.abs(pos.col - 7));

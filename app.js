@@ -32,6 +32,7 @@
   let $btnPvP, $btnPvE, $btnEve, $btnUndo, $btnRestart, $btnRestartOverlay;
   let $aiSettings, $eveSettings, $btnEveStart;
   let $diffButtons, $playerColorButtons, $eveBlackButtons, $eveWhiteButtons, $eveSpeed, $pveSpeed;
+  let $chkFoul, $foulToast, foulToastTimer;
   let $statBlack, $statWhite, $statDraw;
 
   let $btnStartReplay, $btnViewBoard;
@@ -107,6 +108,9 @@
     $eveSpeed = document.getElementById('eve-speed');
     $pveSpeed = document.getElementById('pve-speed');
 
+    $chkFoul = document.getElementById('chk-foul');
+    $foulToast = document.getElementById('foul-toast');
+
     $btnStartReplay = document.getElementById('btn-start-replay');
     $btnViewBoard = document.getElementById('btn-view-board');
     $replayCard = document.getElementById('replay-card');
@@ -144,6 +148,13 @@
     if ($btnReplayPrev) $btnReplayPrev.addEventListener('click', onReplayPrev);
     if ($btnReplayPlay) $btnReplayPlay.addEventListener('click', onReplayTogglePlay);
     if ($btnReplayNext) $btnReplayNext.addEventListener('click', onReplayNext);
+
+    if ($chkFoul) {
+      $chkFoul.addEventListener('change', () => {
+        game.enableFoul = $chkFoul.checked;
+        console.log('[Foul Rule Toggle]', game.enableFoul ? 'ENABLED' : 'DISABLED');
+      });
+    }
 
     $diffButtons.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -242,6 +253,17 @@
     }, delay);
   }
 
+  function showFoulToast(msg) {
+    if (!$foulToast) return;
+    $foulToast.textContent = msg;
+    $foulToast.classList.remove('hidden');
+
+    if (foulToastTimer) clearTimeout(foulToastTimer);
+    foulToastTimer = setTimeout(() => {
+      $foulToast.classList.add('hidden');
+    }, 2200);
+  }
+
   function onCanvasClick(e) {
     // EVE 模式：点击切换暂停/继续
     if (mode === 'eve') {
@@ -262,7 +284,12 @@
     if (!pos) return;
 
     const result = game.placeStone(pos.row, pos.col);
-    if (!result.success) return;
+    if (!result.success) {
+      if (result.reason === 'foul' && result.message) {
+        showFoulToast(result.message);
+      }
+      return;
+    }
 
     lastMovePos = { row: pos.row, col: pos.col };
     stoneAnimStart = performance.now();
@@ -768,6 +795,12 @@
 
   function updateUI() {
     updatePlayerNames();
+
+    // 禁手规则复选框：对局开始后禁用修改，重置后恢复
+    if ($chkFoul) {
+      $chkFoul.checked = game.enableFoul;
+      $chkFoul.disabled = (game.moveHistory.length > 0 && !game.gameOver);
+    }
 
     // 当前玩家高亮（EVE 模式下不闪烁）
     if (mode === 'eve') {
