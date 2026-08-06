@@ -85,9 +85,14 @@
           </div>
         </div>
 
-        <!-- AI难度（人机模式下显示） -->
+        <!-- AI难度与选边（人机模式下显示） -->
         <div id="ai-settings" class="card">
-          <h3>AI 难度</h3>
+          <h3>玩家执子</h3>
+          <div class="btn-group">
+            <button class="btn btn-player-color active" data-color="black">⚫ 执黑先手 (玩家先手)</button>
+            <button class="btn btn-player-color" data-color="white">⚪ 执白后手 (AI先手)</button>
+          </div>
+          <h3 style="margin-top: var(--space-md)">AI 难度</h3>
           <div class="btn-group">
             <button class="btn btn-diff active" data-level="medium">中等</button>
             <button class="btn btn-diff" data-level="hard">困难</button>

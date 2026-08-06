@@ -31,7 +31,7 @@
   let $playerBlack, $playerWhite, $moveHistory, $statusText, $winOverlay, $winText;
   let $btnPvP, $btnPvE, $btnEve, $btnUndo, $btnRestart, $btnRestartOverlay;
   let $aiSettings, $eveSettings, $btnEveStart;
-  let $diffButtons, $eveBlackButtons, $eveWhiteButtons, $eveSpeed, $pveSpeed;
+  let $diffButtons, $playerColorButtons, $eveBlackButtons, $eveWhiteButtons, $eveSpeed, $pveSpeed;
   let $statBlack, $statWhite, $statDraw;
 
   let $btnStartReplay, $btnViewBoard;
@@ -64,7 +64,7 @@
   let replayTimer = null;       // 自动播放定时器 ID
   let savedHistory = [];        // 终局时保存的全部落子历史
 
-  let stats = { black: 0, white: 0, draw: 0 };
+  let playerColor = BLACK; // 默认玩家执黑先手 (BLACK | WHITE)
 
   // ========================
   // 初始化
@@ -94,6 +94,7 @@
     $eveSettings = document.getElementById('eve-settings');
     $btnEveStart = document.getElementById('btn-eve-start');
     $diffButtons = document.querySelectorAll('.btn-diff');
+    $playerColorButtons = document.querySelectorAll('.btn-player-color');
     $eveBlackButtons = document.querySelectorAll('.btn-eve-black');
     $eveWhiteButtons = document.querySelectorAll('.btn-eve-white');
     $eveSpeed = document.getElementById('eve-speed');
@@ -145,6 +146,16 @@
       });
     });
 
+    // 玩家持子选边按钮
+    $playerColorButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        $playerColorButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        playerColor = btn.dataset.color === 'white' ? WHITE : BLACK;
+        onRestart();
+      });
+    });
+
     // EVE 难度按钮
     $eveBlackButtons.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -190,6 +201,40 @@
   // ========================
   // 事件处理
   // ========================
+  function triggerAIMoveIfNeeded() {
+    if (mode !== 'pve' || game.gameOver || aiThinking) return;
+    const aiColor = playerColor === BLACK ? WHITE : BLACK;
+    if (game.currentPlayer !== aiColor) return;
+
+    aiThinking = true;
+    updateUI();
+
+    const delay = game.moveHistory.length === 0 ? 300 : (ANIM_DURATION + 30);
+    setTimeout(() => {
+      const pveStart = Date.now();
+      const pveBudget = $pveSpeed ? parseInt($pveSpeed.value) || 0 : 500;
+      const aiMove = ai.getMove(game, pveBudget);
+      const elapsed = Date.now() - pveStart;
+
+      const MIN_DELAY = 300;
+      const remainDelay = Math.max(0, MIN_DELAY - elapsed);
+
+      setTimeout(() => {
+        const aiResult = game.placeStone(aiMove.row, aiMove.col);
+        lastMovePos = { row: aiMove.row, col: aiMove.col };
+        aiThinking = false;
+
+        stoneAnimStart = performance.now();
+        requestAnimationFrame(animLoop);
+
+        updateUI();
+        if (aiResult.winner !== undefined) {
+          onGameEnd(aiResult);
+        }
+      }, remainDelay);
+    }, delay);
+  }
+
   function onCanvasClick(e) {
     // EVE 模式：点击切换暂停/继续
     if (mode === 'eve') {
@@ -202,6 +247,9 @@
     }
 
     if (game.gameOver || aiThinking) return;
+    // 如果轮到 AI 走，拒绝玩家手防
+    const aiColor = playerColor === BLACK ? WHITE : BLACK;
+    if (mode === 'pve' && game.currentPlayer === aiColor) return;
 
     const pos = canvasToBoard(e.offsetX, e.offsetY);
     if (!pos) return;
@@ -219,37 +267,8 @@
       return;
     }
 
-    // PvE 模式：轮到 AI
-    if (mode === 'pve' && game.currentPlayer === WHITE) {
-      aiThinking = true;
-      updateUI();
-
-      // 保证玩家的落盘变大动画(150ms)平滑播放完毕后，再让 AI 占用 CPU 进行深搜计算
-      setTimeout(() => {
-        const pveStart = Date.now();
-        const pveBudget = $pveSpeed ? parseInt($pveSpeed.value) || 0 : 500;
-        const aiMove = ai.getMove(game, pveBudget);
-        const elapsed = Date.now() - pveStart;
-
-        // 拟真延迟：保证最小思考间隔，避免极速秒下
-        const MIN_DELAY = 300;
-        const remainDelay = Math.max(0, MIN_DELAY - elapsed);
-
-        setTimeout(() => {
-          const aiResult = game.placeStone(aiMove.row, aiMove.col);
-          lastMovePos = { row: aiMove.row, col: aiMove.col };
-          aiThinking = false;
-
-          stoneAnimStart = performance.now();
-          requestAnimationFrame(animLoop);
-
-          updateUI();
-          if (aiResult.winner !== undefined) {
-            onGameEnd(aiResult);
-          }
-        }, remainDelay);
-      }, ANIM_DURATION + 30);
-    }
+    // 尝试触发 AI 落子
+    triggerAIMoveIfNeeded();
   }
 
   function animLoop(now) {
@@ -308,6 +327,9 @@
     if ($winOverlay) $winOverlay.classList.add('hidden');
     render();
     updateUI();
+
+    // 若玩家执白后手，AI 自动执黑下开局第一子
+    triggerAIMoveIfNeeded();
   }
 
   function setMode(newMode) {
@@ -322,15 +344,20 @@
 
     if (mode === 'pve') {
       $aiSettings.classList.remove('hidden');
-      document.getElementById('black-name').textContent = '玩家 1';
-      document.getElementById('white-name').textContent = 'AI';
+      if (playerColor === BLACK) {
+        document.getElementById('black-name').textContent = '玩家 1 (黑)';
+        document.getElementById('white-name').textContent = 'AI (白)';
+      } else {
+        document.getElementById('black-name').textContent = 'AI (黑)';
+        document.getElementById('white-name').textContent = '玩家 1 (白)';
+      }
     } else if (mode === 'eve') {
       $eveSettings.classList.remove('hidden');
       document.getElementById('black-name').textContent = 'AI (黑)';
       document.getElementById('white-name').textContent = 'AI (白)';
     } else {
-      document.getElementById('black-name').textContent = '玩家 1';
-      document.getElementById('white-name').textContent = '玩家 2';
+      document.getElementById('black-name').textContent = '玩家 1 (黑)';
+      document.getElementById('white-name').textContent = '玩家 2 (白)';
     }
 
     onRestart();

@@ -361,7 +361,8 @@ body {
 }
 
 .btn-mode.active,
-.btn-diff.active {
+.btn-diff.active,
+.btn-player-color.active {
   background: rgba(212, 165, 74, 0.15);
   border-color: var(--accent-gold);
   color: var(--accent-gold);
