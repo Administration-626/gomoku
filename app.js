@@ -65,6 +65,13 @@
   let savedHistory = [];        // 终局时保存的全部落子历史
 
   let playerColor = BLACK; // 默认玩家执黑先手 (BLACK | WHITE)
+  let stats = { black: 0, white: 0, draw: 0 };
+
+  function updateStats() {
+    if ($statBlack) $statBlack.textContent = stats.black;
+    if ($statWhite) $statWhite.textContent = stats.white;
+    if ($statDraw) $statDraw.textContent = stats.draw;
+  }
 
   // ========================
   // 初始化
