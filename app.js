@@ -34,6 +34,9 @@
   let $diffButtons, $eveBlackButtons, $eveWhiteButtons, $eveSpeed, $pveSpeed;
   let $statBlack, $statWhite, $statDraw;
 
+  let $btnStartReplay, $btnViewBoard;
+  let $replayCard, $btnReplayPrev, $btnReplayPlay, $btnReplayNext, $replayProgress;
+
   // ========================
   // 状态
   // ========================
@@ -53,6 +56,13 @@
   let eveTimer = null;        // setTimeout ID
   let evePaused = false;
   let eveRunning = false;     // 是否已开始对弈
+
+  // 复盘与回放状态
+  let isReplaying = false;
+  let replayStep = 0;           // 当前复盘步数
+  let replayPlaying = false;    // 是否处于自动回放中
+  let replayTimer = null;       // 自动播放定时器 ID
+  let savedHistory = [];        // 终局时保存的全部落子历史
 
   let stats = { black: 0, white: 0, draw: 0 };
 
@@ -89,6 +99,14 @@
     $eveSpeed = document.getElementById('eve-speed');
     $pveSpeed = document.getElementById('pve-speed');
 
+    $btnStartReplay = document.getElementById('btn-start-replay');
+    $btnViewBoard = document.getElementById('btn-view-board');
+    $replayCard = document.getElementById('replay-card');
+    $btnReplayPrev = document.getElementById('btn-replay-prev');
+    $btnReplayPlay = document.getElementById('btn-replay-play');
+    $btnReplayNext = document.getElementById('btn-replay-next');
+    $replayProgress = document.getElementById('replay-progress');
+
     $statBlack = document.getElementById('stat-black');
     $statWhite = document.getElementById('stat-white');
     $statDraw = document.getElementById('stat-draw');
@@ -112,6 +130,12 @@
     if ($btnUndo) $btnUndo.addEventListener('click', onUndo);
     if ($btnRestart) $btnRestart.addEventListener('click', onRestart);
     if ($btnRestartOverlay) $btnRestartOverlay.addEventListener('click', onRestart);
+
+    if ($btnViewBoard) $btnViewBoard.addEventListener('click', onViewBoard);
+    if ($btnStartReplay) $btnStartReplay.addEventListener('click', onStartReplay);
+    if ($btnReplayPrev) $btnReplayPrev.addEventListener('click', onReplayPrev);
+    if ($btnReplayPlay) $btnReplayPlay.addEventListener('click', onReplayTogglePlay);
+    if ($btnReplayNext) $btnReplayNext.addEventListener('click', onReplayNext);
 
     $diffButtons.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -266,6 +290,10 @@
   }
 
   function onRestart() {
+    stopReplayAutoPlay();
+    isReplaying = false;
+    savedHistory = [];
+    if ($replayCard) $replayCard.classList.add('hidden');
     eveStop();
     game.reset();
     lastMovePos = null;
@@ -276,7 +304,7 @@
       $btnEveStart.disabled = false;
       $btnEveStart.textContent = '开始对战';
     }
-    $winOverlay.classList.add('hidden');
+    if ($winOverlay) $winOverlay.classList.add('hidden');
     render();
     updateUI();
   }
@@ -361,7 +389,93 @@
     }
   }
 
+  function stopReplayAutoPlay() {
+    if (replayTimer) {
+      clearInterval(replayTimer);
+      replayTimer = null;
+    }
+    replayPlaying = false;
+    if ($btnReplayPlay) $btnReplayPlay.textContent = '▶ 自动播放';
+  }
+
+  function onViewBoard() {
+    stopReplayAutoPlay();
+    if ($winOverlay) $winOverlay.classList.add('hidden');
+    if ($replayCard) $replayCard.classList.remove('hidden');
+    isReplaying = true;
+    replayStep = savedHistory.length;
+    showReplayStep(replayStep);
+  }
+
+  function onStartReplay() {
+    onViewBoard();
+    replayStep = 0;
+    showReplayStep(0);
+    onReplayTogglePlay();
+  }
+
+  function onReplayTogglePlay() {
+    if (replayPlaying) {
+      stopReplayAutoPlay();
+    } else {
+      if (replayStep >= savedHistory.length) {
+        replayStep = 0;
+      }
+      replayPlaying = true;
+      if ($btnReplayPlay) $btnReplayPlay.textContent = '⏸ 暂停';
+      replayTimer = setInterval(() => {
+        if (replayStep < savedHistory.length) {
+          replayStep++;
+          showReplayStep(replayStep);
+        } else {
+          stopReplayAutoPlay();
+        }
+      }, 500);
+    }
+  }
+
+  function onReplayPrev() {
+    stopReplayAutoPlay();
+    if (replayStep > 0) {
+      replayStep--;
+      showReplayStep(replayStep);
+    }
+  }
+
+  function onReplayNext() {
+    stopReplayAutoPlay();
+    if (replayStep < savedHistory.length) {
+      replayStep++;
+      showReplayStep(replayStep);
+    }
+  }
+
+  function showReplayStep(step) {
+    if (!savedHistory) return;
+    step = Math.max(0, Math.min(step, savedHistory.length));
+    replayStep = step;
+
+    // 清空当前棋盘并重放前 step 步
+    game.board = Array.from({ length: BOARD_SIZE }, () => new Array(BOARD_SIZE).fill(EMPTY));
+    for (let i = 0; i < step; i++) {
+      const m = savedHistory[i];
+      game.board[m.row][m.col] = m.player;
+    }
+
+    lastMovePos = step > 0 ? savedHistory[step - 1] : null;
+
+    if ($replayProgress) {
+      $replayProgress.textContent = `第 ${step} / ${savedHistory.length} 手`;
+    }
+
+    render();
+    updateMoveHistory(step);
+  }
+
   function onGameEnd(result) {
+    savedHistory = [...game.moveHistory];
+    replayStep = savedHistory.length;
+
     if (result.draw) {
       $winText.textContent = '平局！';
       $winText.style.color = 'var(--text-primary)';
@@ -376,7 +490,7 @@
       stats.white++;
     }
 
-    $winOverlay.classList.remove('hidden');
+    if ($winOverlay) $winOverlay.classList.remove('hidden');
     updateStats();
   }
 
@@ -638,18 +752,34 @@
     updateMoveHistory();
   }
 
-  function updateMoveHistory() {
+  function updateMoveHistory(highlightStep) {
     if (!$moveHistory) return;
     $moveHistory.innerHTML = '';
-    game.moveHistory.forEach((move, i) => {
+    const historyList = isReplaying && savedHistory.length > 0 ? savedHistory : game.moveHistory;
+
+    historyList.forEach((move, i) => {
+      const stepNum = i + 1;
       const li = document.createElement('li');
       const label = move.player === BLACK ? '⚫' : '⚪';
       const coord = `${String.fromCharCode(65 + move.col)}${BOARD_SIZE - move.row}`;
-      li.textContent = `${i + 1}. ${label} ${coord}`;
+      li.textContent = `${stepNum}. ${label} ${coord}`;
+      li.style.cursor = 'pointer';
+
+      if (highlightStep && highlightStep === stepNum) {
+        li.style.color = 'var(--accent-gold)';
+        li.style.fontWeight = 'bold';
+        li.style.background = 'rgba(212, 165, 74, 0.2)';
+      }
+
+      li.addEventListener('click', () => {
+        if (savedHistory.length === 0) savedHistory = [...game.moveHistory];
+        onViewBoard();
+        showReplayStep(stepNum);
+      });
+
       $moveHistory.appendChild(li);
     });
 
-    // 滚动到底部
     if ($moveHistory.parentElement) {
       $moveHistory.parentElement.scrollTop = $moveHistory.parentElement.scrollHeight;
     }

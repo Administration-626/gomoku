@@ -64,7 +64,11 @@
         <div id="win-overlay" class="hidden">
           <div id="win-message">
             <span id="win-text"></span>
-            <button id="btn-restart-overlay" class="btn btn-primary">再来一局</button>
+            <div class="overlay-btn-group">
+              <button id="btn-start-replay" class="btn btn-primary">🎬 对局回放</button>
+              <button id="btn-view-board" class="btn btn-secondary">🔍 查看盘面</button>
+              <button id="btn-restart-overlay" class="btn btn-secondary">🔄 再来一局</button>
+            </div>
           </div>
         </div>
       </section>
@@ -122,6 +126,17 @@
             </label>
           </div>
           <button id="btn-eve-start" class="btn btn-primary" style="margin-top: var(--space-md)">开始对战</button>
+        </div>
+
+        <!-- 棋局回放与复盘控制卡片 -->
+        <div id="replay-card" class="card hidden">
+          <h3>🎬 对局回放</h3>
+          <div class="btn-group-row">
+            <button id="btn-replay-prev" class="btn btn-secondary btn-sm">⏮ 上一步</button>
+            <button id="btn-replay-play" class="btn btn-primary btn-sm">▶ 自动播放</button>
+            <button id="btn-replay-next" class="btn btn-secondary btn-sm">下一步 ⏭</button>
+          </div>
+          <div id="replay-progress" class="replay-progress">第 0 / 0 手</div>
         </div>
 
         <!-- 操作按钮 -->
