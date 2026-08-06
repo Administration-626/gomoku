@@ -31,7 +31,7 @@
   let $playerBlack, $playerWhite, $moveHistory, $statusText, $winOverlay, $winText;
   let $btnPvP, $btnPvE, $btnEve, $btnUndo, $btnRestart, $btnRestartOverlay;
   let $aiSettings, $eveSettings, $btnEveStart;
-  let $diffButtons, $eveBlackButtons, $eveWhiteButtons, $eveSpeed;
+  let $diffButtons, $eveBlackButtons, $eveWhiteButtons, $eveSpeed, $pveSpeed;
   let $statBlack, $statWhite, $statDraw;
 
   // ========================
@@ -87,6 +87,7 @@
     $eveBlackButtons = document.querySelectorAll('.btn-eve-black');
     $eveWhiteButtons = document.querySelectorAll('.btn-eve-white');
     $eveSpeed = document.getElementById('eve-speed');
+    $pveSpeed = document.getElementById('pve-speed');
 
     $statBlack = document.getElementById('stat-black');
     $statWhite = document.getElementById('stat-white');
@@ -201,7 +202,8 @@
       // 保证玩家的落盘变大动画(150ms)平滑播放完毕后，再让 AI 占用 CPU 进行深搜计算
       setTimeout(() => {
         const pveStart = Date.now();
-        const aiMove = ai.getMove(game, 800);
+        const pveBudget = $pveSpeed ? parseInt($pveSpeed.value) || 0 : 500;
+        const aiMove = ai.getMove(game, pveBudget);
         const elapsed = Date.now() - pveStart;
 
         // 拟真延迟：保证最小思考间隔，避免极速秒下
