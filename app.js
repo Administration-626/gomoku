@@ -198,14 +198,14 @@
       aiThinking = true;
       updateUI();
 
-      const pveStart = Date.now();
+      // 保证玩家的落盘变大动画(150ms)平滑播放完毕后，再让 AI 占用 CPU 进行深搜计算
       setTimeout(() => {
-        // 限制思考上限 800ms
+        const pveStart = Date.now();
         const aiMove = ai.getMove(game, 800);
         const elapsed = Date.now() - pveStart;
 
-        // 拟真延迟：保证最小思考间隔为 350ms，避免瞬间秒下导致的突兀感
-        const MIN_DELAY = 350;
+        // 拟真延迟：保证最小思考间隔，避免极速秒下
+        const MIN_DELAY = 300;
         const remainDelay = Math.max(0, MIN_DELAY - elapsed);
 
         setTimeout(() => {
@@ -221,7 +221,7 @@
             onGameEnd(aiResult);
           }
         }, remainDelay);
-      }, 50);
+      }, ANIM_DURATION + 30);
     }
   }
 
