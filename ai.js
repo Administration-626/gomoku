@@ -170,8 +170,17 @@ class GomokuAI {
       return oppVCF;
     }
 
+    // 开局保护：前 3 步只考虑距离已有棋子距离为 1 的紧凑相邻点，避免开局在远处乱下
+    let effectiveCandidates = candidates;
+    if (game.moveHistory.length <= 3) {
+      const tightCandidates = this._getNearbyEmpty(game, 1);
+      if (tightCandidates.length > 0) {
+        effectiveCandidates = tightCandidates;
+      }
+    }
+
     // 初始候选点按攻防启发式排序
-    let sortedCandidates = this._sortCandidates(game, candidates, me).slice(0, 15);
+    let sortedCandidates = this._sortCandidates(game, effectiveCandidates, me).slice(0, 15);
 
     let globalBestMove = sortedCandidates[0].pos;
     let globalBestScore = -Infinity;
