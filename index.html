@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="在线五子棋游戏 - 支持双人对战与AI对弈">
+  <title>五子棋 | Gomoku</title>
+  <script>
+    // 全域运行时错误捕捉（若在用户浏览器上有任何报错，直接顶部弹框提示）
+    window.addEventListener('error', function (e) {
+      var banner = document.getElementById('global-error-banner');
+      if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'global-error-banner';
+        banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#ff3333;color:#fff;padding:12px;font-size:14px;font-family:monospace;word-break:break-all;box-shadow:0 4px 12px rgba(0,0,0,0.5);';
+        document.body ? document.body.insertBefore(banner, document.body.firstChild) : document.documentElement.appendChild(banner);
+      }
+      banner.innerHTML = '<strong>⚠️ JavaScript Error:</strong> ' + (e.message || e) + ' <br><small>(' + (e.filename || '') + ':' + (e.lineno || 0) + ')</small>';
+    });
+  </script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 顶部标题栏 -->
+    <header id="header">
+      <h1 id="title">五子棋</h1>
+      <p id="subtitle">Gomoku</p>
+    </header>
+
+    <!-- 主体区域：左侧信息面板 + 中间棋盘 + 右侧控制面板 -->
+    <main id="main">
+
+      <!-- 左侧：玩家信息 -->
+      <aside id="panel-left" class="panel">
+        <div id="player-black" class="player-card active">
+          <div class="stone-indicator black-stone"></div>
+          <div class="player-info">
+            <span class="player-label">黑方</span>
+            <span class="player-name" id="black-name">玩家 1</span>
+          </div>
+          <div class="turn-arrow" id="black-arrow">▶</div>
+        </div>
+        <div id="player-white" class="player-card">
+          <div class="stone-indicator white-stone"></div>
+          <div class="player-info">
+            <span class="player-label">白方</span>
+            <span class="player-name" id="white-name">玩家 2</span>
+          </div>
+          <div class="turn-arrow" id="white-arrow">▶</div>
+        </div>
+
+        <!-- 落子记录 -->
+        <div id="move-history-container" class="card">
+          <h3>落子记录</h3>
+          <ol id="move-history"></ol>
+        </div>
+      </aside>
+
+      <!-- 中间：棋盘 -->
+      <section id="board-container">
+        <canvas id="board-canvas"></canvas>
+        <!-- 胜利遮罩 -->
+        <div id="win-overlay" class="hidden">
+          <div id="win-message">
+            <span id="win-text"></span>
+            <button id="btn-restart-overlay" class="btn btn-primary">再来一局</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 右侧：控制面板 -->
+      <aside id="panel-right" class="panel">
+        <!-- 游戏模式选择 -->
+        <div class="card">
+          <h3>游戏模式</h3>
+          <div class="btn-group">
+            <button id="btn-pvp" class="btn btn-mode active">双人对战</button>
+            <button id="btn-pve" class="btn btn-mode">人机对弈</button>
+            <button id="btn-eve" class="btn btn-mode">AI 对战</button>
+          </div>
+        </div>
+
+        <!-- AI难度（人机模式下显示） -->
+        <div id="ai-settings" class="card hidden">
+          <h3>AI 难度</h3>
+          <div class="btn-group">
+            <button class="btn btn-diff active" data-level="medium">中等</button>
+            <button class="btn btn-diff" data-level="hard">困难</button>
+          </div>
+        </div>
+
+        <!-- EVE 设置（AI对战模式下显示） -->
+        <div id="eve-settings" class="card hidden">
+          <h3>⚫ 黑方 AI</h3>
+          <div class="btn-group">
+            <button class="btn btn-eve-black active" data-level="medium">中等</button>
+            <button class="btn btn-eve-black" data-level="hard">困难</button>
+          </div>
+          <h3 style="margin-top: var(--space-md)">⚪ 白方 AI</h3>
+          <div class="btn-group">
+            <button class="btn btn-eve-white active" data-level="medium">中等</button>
+            <button class="btn btn-eve-white" data-level="hard">困难</button>
+          </div>
+          <div class="btn-group" style="margin-top: var(--space-md)">
+            <label class="speed-label">每步间隔（含思考）
+              <select id="eve-speed" class="eve-select">
+                <option value="0">尽快</option>
+                <option value="300">300ms</option>
+                <option value="500" selected>500ms</option>
+                <option value="1000">1s</option>
+              </select>
+            </label>
+          </div>
+          <button id="btn-eve-start" class="btn btn-primary" style="margin-top: var(--space-md)">开始对战</button>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="card">
+          <h3>操作</h3>
+          <button id="btn-undo" class="btn btn-secondary" disabled>悔棋</button>
+          <button id="btn-restart" class="btn btn-secondary">重新开始</button>
+        </div>
+
+        <!-- 游戏统计 -->
+        <div class="card">
+          <h3>统计</h3>
+          <div class="stat-row">
+            <span>黑方胜</span>
+            <span id="stat-black" class="stat-value">0</span>
+          </div>
+          <div class="stat-row">
+            <span>白方胜</span>
+            <span id="stat-white" class="stat-value">0</span>
+          </div>
+          <div class="stat-row">
+            <span>平局</span>
+            <span id="stat-draw" class="stat-value">0</span>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- 底部状态栏 -->
+    <footer id="footer">
+      <span id="status-text">黑方执先</span>
+    </footer>
+  </div>
+
+  <script src="game.js"></script>
+  <script src="ai.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

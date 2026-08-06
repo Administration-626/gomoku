@@ -1,0 +1,14 @@
+{
+  "name": "gomoku",
+  "version": "1.0.0",
+  "description": "Gomoku Online Game with AI Engine",
+  "main": "app.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node test_suite.js && node -c app.js game.js ai.js"
+  },
+  "keywords": ["gomoku", "five-in-a-row", "ai"],
+  "author": "",
+  "license": "ISC"
+}

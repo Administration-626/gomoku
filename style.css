@@ -1,0 +1,526 @@
+/* ============================================
+   五子棋 - 样式表
+   设计系统：深色主题 + 木纹棋盘 + 玻璃态面板
+   ============================================ */
+
+/* --- Design Tokens --- */
+:root {
+  /* 颜色 */
+  --bg-primary: #0f0f1a;
+  --bg-secondary: #1a1a2e;
+  --bg-card: rgba(255, 255, 255, 0.04);
+  --bg-card-hover: rgba(255, 255, 255, 0.08);
+  --border-card: rgba(255, 255, 255, 0.08);
+
+  --text-primary: #e8e8f0;
+  --text-secondary: #9a9ab0;
+  --text-muted: #5a5a70;
+
+  --accent-gold: #d4a54a;
+  --accent-gold-glow: rgba(212, 165, 74, 0.3);
+  --accent-blue: #4a90d9;
+
+  --black-stone: #1a1a1a;
+  --black-stone-highlight: #333;
+  --white-stone: #f0ece4;
+  --white-stone-shadow: #b8b4ac;
+
+  --board-bg: #dcb35c;
+  --board-line: #5a4a2a;
+  --board-dot: #4a3a1a;
+
+  --win-black: #d4a54a;
+  --win-white: #4a90d9;
+
+  /* 间距 */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  /* 圆角 */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  /* 动画 */
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 400ms ease;
+
+  /* 字体 */
+  --font-family: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+}
+
+/* --- Reset & Base --- */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  font-family: var(--font-family);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  /* 背景纹理 */
+  background-image:
+    radial-gradient(ellipse at 20% 50%, rgba(212, 165, 74, 0.05) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 50%, rgba(74, 144, 217, 0.05) 0%, transparent 50%);
+}
+
+/* --- Layout --- */
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 var(--space-md);
+}
+
+/* Header */
+#header {
+  text-align: center;
+  padding: var(--space-lg) 0 var(--space-md);
+}
+
+#title {
+  font-size: 2rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent-gold), #f0d78c);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: 0.1em;
+}
+
+#subtitle {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  margin-top: var(--space-xs);
+}
+
+/* Main: 三栏 */
+#main {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--space-lg);
+  padding: var(--space-md) 0;
+}
+
+/* 侧边面板 */
+.panel {
+  width: 220px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* 卡片通用 */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: background var(--transition-base);
+}
+
+.card:hover {
+  background: var(--bg-card-hover);
+}
+
+.card h3 {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: var(--space-sm);
+}
+
+/* --- 玩家卡片 --- */
+.player-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-base);
+  position: relative;
+}
+
+.player-card.active {
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 20px var(--accent-gold-glow);
+}
+
+.stone-indicator {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.black-stone {
+  background: radial-gradient(circle at 35% 35%, #555, var(--black-stone));
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.white-stone {
+  background: radial-gradient(circle at 35% 35%, #fff, var(--white-stone));
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.player-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.player-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.player-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.turn-arrow {
+  margin-left: auto;
+  color: var(--accent-gold);
+  font-size: 1rem;
+  opacity: 0;
+  transition: opacity var(--transition-base);
+}
+
+.player-card.active .turn-arrow {
+  opacity: 1;
+  animation: pulse-arrow 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse-arrow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* --- 棋盘 --- */
+#board-container {
+  position: relative;
+  flex-shrink: 0;
+  max-width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+#board-canvas {
+  display: block;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
+  box-shadow:
+    0 4px 30px rgba(0, 0, 0, 0.4),
+    0 0 60px rgba(212, 165, 74, 0.08);
+}
+
+/* 胜利遮罩 */
+#win-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: opacity var(--transition-slow);
+}
+
+#win-overlay.hidden {
+  display: none !important;
+}
+
+#win-message {
+  text-align: center;
+  animation: pop-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#win-text {
+  display: block;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: var(--space-lg);
+  text-shadow: 0 0 30px currentColor;
+}
+
+@keyframes pop-in {
+  from { transform: scale(0.7); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* --- 落子记录 --- */
+#move-history-container {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+#move-history {
+  list-style: none;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#move-history li {
+  padding: 2px var(--space-xs);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+#move-history li:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+#move-history li:last-child {
+  color: var(--accent-gold);
+}
+
+/* Scrollbar */
+#move-history-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+#move-history-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+}
+
+/* --- 按钮 --- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  width: 100%;
+  margin-bottom: var(--space-xs);
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--bg-card-hover);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent-gold), #c89530);
+  border-color: var(--accent-gold);
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #e0b55a, var(--accent-gold));
+  box-shadow: 0 0 20px var(--accent-gold-glow);
+}
+
+.btn-mode.active,
+.btn-diff.active {
+  background: rgba(212, 165, 74, 0.15);
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
+
+.btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+/* --- 统计 --- */
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-xs) 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.stat-row:last-child {
+  border-bottom: none;
+}
+
+.stat-value {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* --- Footer --- */
+#footer {
+  text-align: center;
+  padding: var(--space-md) 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+#status-text {
+  color: var(--accent-gold);
+  font-weight: 600;
+}
+
+/* --- 落子动画 --- */
+@keyframes stone-place {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* --- 响应式 --- */
+@media (max-width: 1100px) {
+  #main {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .panel {
+    width: 100%;
+    max-width: 500px;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .panel > * {
+    flex: 1;
+    min-width: 200px;
+  }
+
+  #panel-left {
+    order: 2;
+  }
+
+  #board-container {
+    order: 1;
+  }
+
+  #panel-right {
+    order: 3;
+  }
+}
+
+@media (max-width: 600px) {
+  #title {
+    font-size: 1.5rem;
+  }
+
+  .panel > * {
+    min-width: 140px;
+  }
+}
+
+/* --- 隐藏工具类 --- */
+.hidden {
+  display: none !important;
+}
+
+/* 仅用于 overlay 的 hidden（需要 fade 效果，不能 display:none） */
+#win-overlay.hidden {
+  display: flex !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* AI 思考指示器 */
+.ai-thinking-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--accent-gold);
+  margin-left: 8px;
+  animation: pulse-dot 1s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(0.8); opacity: 0.5; }
+  50% { transform: scale(1.2); opacity: 1; }
+}
+
+/* --- EVE 模式 --- */
+.eve-select {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-family);
+  font-size: 0.85rem;
+  cursor: pointer;
+  outline: none;
+  transition: border-color var(--transition-fast);
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239a9ab0' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+.eve-select:hover,
+.eve-select:focus {
+  border-color: var(--accent-gold);
+}
+
+.speed-label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+}
+
+.btn-eve-black.active,
+.btn-eve-white.active {
+  background: rgba(212, 165, 74, 0.15);
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
