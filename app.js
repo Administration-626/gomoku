@@ -665,12 +665,14 @@
     
     ctx.fillStyle = stone === BLACK ? '#d4a54a' : '#4a90d9';
     
-    // 显示手数
-    const moveNum = game.moveHistory.length;
-    ctx.font = 'bold 13px var(--font-family, sans-serif)';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(moveNum, 0, 1);
+    // 显示手数：复盘模式显示当前复盘步数 replayStep，对局模式显示当前总手数
+    const moveNum = isReplaying ? replayStep : game.moveHistory.length;
+    if (moveNum > 0) {
+      ctx.font = 'bold 13px var(--font-family, sans-serif)';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(moveNum, 0, 1);
+    }
     
     ctx.restore();
   }
@@ -678,6 +680,8 @@
   /** 绘制获胜连线 */
   function drawWinLine() {
     if (game.winLine.length === 0) return;
+    // 复盘模式下，只有回放到最后一手才显示获胜连线
+    if (isReplaying && savedHistory && replayStep < savedHistory.length) return;
 
     ctx.save();
     ctx.strokeStyle = game.winner === BLACK ? 'var(--win-black)' : 'var(--win-white)';
