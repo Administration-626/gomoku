@@ -293,6 +293,14 @@ class GomokuAI {
         if (this._timedOut) break;
 
         const pos = item.pos;
+
+        // 如果对手是黑棋且启用禁手，若对手下在此处触发禁手，说明对手无法下在此处，直接跳过
+        if (opponent === BLACK && game.enableFoul && typeof game.checkFoul === 'function') {
+          if (game.checkFoul(pos.row, pos.col, BLACK)) {
+            continue;
+          }
+        }
+
         game.board[pos.row][pos.col] = opponent;
 
         const winLine = game._checkWin(pos.row, pos.col, opponent);
@@ -332,10 +340,16 @@ class GomokuAI {
 
     return validCandidates.map(pos => {
       const attack = this._evaluatePosition(game, pos.row, pos.col, player);
-      const defense = this._evaluatePosition(game, pos.row, pos.col, opponent);
+      let defense = this._evaluatePosition(game, pos.row, pos.col, opponent);
+
+      // 若对手为黑棋且启用了禁手，若对手在 pos 处落子属于禁手，说明对手无法下在此处，防守方无需防守禁手点
+      if (opponent === BLACK && game.enableFoul && typeof game.checkFoul === 'function') {
+        if (game.checkFoul(pos.row, pos.col, BLACK)) {
+          defense = 0;
+        }
+      }
+
       const centerBonus = 14 - (Math.abs(pos.row - 7) + Math.abs(pos.col - 7));
-      
-      // 面对冲四/活四/五连爆杀威胁，赋予 100 倍绝对防守优先极
       const defWeight = defense >= 5000 ? 100.0 : (defense >= 1000 ? 10.0 : 1.1);
 
       return {

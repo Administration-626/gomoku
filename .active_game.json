@@ -1,0 +1,225 @@
+{
+  "updatedAt": "2026-08-06T17:17:57.488Z",
+  "mode": "eve",
+  "playerColor": "BLACK",
+  "enableFoul": true,
+  "aiLevel": "medium",
+  "pveSpeed": "500",
+  "gameOver": true,
+  "winner": 1,
+  "moveCount": 35,
+  "moveHistory": [
+    {
+      "row": 7,
+      "col": 7,
+      "player": 1
+    },
+    {
+      "row": 6,
+      "col": 7,
+      "player": 2
+    },
+    {
+      "row": 6,
+      "col": 6,
+      "player": 1
+    },
+    {
+      "row": 8,
+      "col": 8,
+      "player": 2
+    },
+    {
+      "row": 5,
+      "col": 7,
+      "player": 1
+    },
+    {
+      "row": 7,
+      "col": 5,
+      "player": 2
+    },
+    {
+      "row": 5,
+      "col": 5,
+      "player": 1
+    },
+    {
+      "row": 4,
+      "col": 4,
+      "player": 2
+    },
+    {
+      "row": 5,
+      "col": 8,
+      "player": 1
+    },
+    {
+      "row": 5,
+      "col": 6,
+      "player": 2
+    },
+    {
+      "row": 7,
+      "col": 8,
+      "player": 1
+    },
+    {
+      "row": 7,
+      "col": 9,
+      "player": 2
+    },
+    {
+      "row": 6,
+      "col": 10,
+      "player": 1
+    },
+    {
+      "row": 5,
+      "col": 9,
+      "player": 2
+    },
+    {
+      "row": 6,
+      "col": 9,
+      "player": 1
+    },
+    {
+      "row": 4,
+      "col": 7,
+      "player": 2
+    },
+    {
+      "row": 3,
+      "col": 8,
+      "player": 1
+    },
+    {
+      "row": 4,
+      "col": 8,
+      "player": 2
+    },
+    {
+      "row": 4,
+      "col": 6,
+      "player": 1
+    },
+    {
+      "row": 3,
+      "col": 5,
+      "player": 2
+    },
+    {
+      "row": 5,
+      "col": 10,
+      "player": 1
+    },
+    {
+      "row": 8,
+      "col": 7,
+      "player": 2
+    },
+    {
+      "row": 7,
+      "col": 10,
+      "player": 1
+    },
+    {
+      "row": 8,
+      "col": 10,
+      "player": 2
+    },
+    {
+      "row": 3,
+      "col": 10,
+      "player": 1
+    },
+    {
+      "row": 4,
+      "col": 10,
+      "player": 2
+    },
+    {
+      "row": 3,
+      "col": 12,
+      "player": 1
+    },
+    {
+      "row": 4,
+      "col": 11,
+      "player": 2
+    },
+    {
+      "row": 3,
+      "col": 9,
+      "player": 1
+    },
+    {
+      "row": 3,
+      "col": 11,
+      "player": 2
+    },
+    {
+      "row": 3,
+      "col": 7,
+      "player": 1
+    },
+    {
+      "row": 3,
+      "col": 6,
+      "player": 2
+    },
+    {
+      "row": 2,
+      "col": 8,
+      "player": 1
+    },
+    {
+      "row": 6,
+      "col": 4,
+      "player": 2
+    },
+    {
+      "row": 1,
+      "col": 9,
+      "player": 1
+    }
+  ],
+  "formattedMoves": [
+    "1. ⚫ H8 (row:7, col:7)",
+    "2. ⚪ H9 (row:6, col:7)",
+    "3. ⚫ G9 (row:6, col:6)",
+    "4. ⚪ I7 (row:8, col:8)",
+    "5. ⚫ H10 (row:5, col:7)",
+    "6. ⚪ F8 (row:7, col:5)",
+    "7. ⚫ F10 (row:5, col:5)",
+    "8. ⚪ E11 (row:4, col:4)",
+    "9. ⚫ I10 (row:5, col:8)",
+    "10. ⚪ G10 (row:5, col:6)",
+    "11. ⚫ I8 (row:7, col:8)",
+    "12. ⚪ J8 (row:7, col:9)",
+    "13. ⚫ K9 (row:6, col:10)",
+    "14. ⚪ J10 (row:5, col:9)",
+    "15. ⚫ J9 (row:6, col:9)",
+    "16. ⚪ H11 (row:4, col:7)",
+    "17. ⚫ I12 (row:3, col:8)",
+    "18. ⚪ I11 (row:4, col:8)",
+    "19. ⚫ G11 (row:4, col:6)",
+    "20. ⚪ F12 (row:3, col:5)",
+    "21. ⚫ K10 (row:5, col:10)",
+    "22. ⚪ H7 (row:8, col:7)",
+    "23. ⚫ K8 (row:7, col:10)",
+    "24. ⚪ K7 (row:8, col:10)",
+    "25. ⚫ K12 (row:3, col:10)",
+    "26. ⚪ K11 (row:4, col:10)",
+    "27. ⚫ M12 (row:3, col:12)",
+    "28. ⚪ L11 (row:4, col:11)",
+    "29. ⚫ J12 (row:3, col:9)",
+    "30. ⚪ L12 (row:3, col:11)",
+    "31. ⚫ H12 (row:3, col:7)",
+    "32. ⚪ G12 (row:3, col:6)",
+    "33. ⚫ I13 (row:2, col:8)",
+    "34. ⚪ E9 (row:6, col:4)",
+    "35. ⚫ J14 (row:1, col:9)"
+  ]
+}
