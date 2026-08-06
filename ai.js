@@ -20,7 +20,7 @@ class GomokuAI {
     this.SCORES = {
       FIVE: 100000,
       LIVE_FOUR: 10000,
-      RUSH_FOUR: 1000,
+      RUSH_FOUR: 5000,
       LIVE_THREE: 1000,
       SLEEP_THREE: 100,
       LIVE_TWO: 100,
@@ -419,7 +419,7 @@ class GomokuAI {
     if (s.includes('011110')) return 10000;
 
     // 冲四 / 跳活四 / 嵌心四
-    if (/X11110|01111X|10111|11011|11101/.test(s)) return 1000;
+    if (/X11110|01111X|10111|11011|11101/.test(s)) return 5000;
 
     // 活三 / 跳活三
     if (/01110|010110|011010/.test(s)) return 1000;
