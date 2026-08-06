@@ -32,7 +32,7 @@
   let $btnPvP, $btnPvE, $btnEve, $btnUndo, $btnRestart, $btnRestartOverlay;
   let $aiSettings, $eveSettings, $btnEveStart, $btnPvEStart;
   let $diffButtons, $playerColorButtons, $eveBlackButtons, $eveWhiteButtons, $eveSpeed, $pveSpeed;
-  let $chkFoul, $foulToast, foulToastTimer;
+  let $chkFoul, $foulToast, foulToastTimer, $btnExportDebug;
   let $statBlack, $statWhite, $statDraw;
 
   let $btnStartReplay, $btnViewBoard;
@@ -111,6 +111,7 @@
 
     $chkFoul = document.getElementById('chk-foul');
     $foulToast = document.getElementById('foul-toast');
+    $btnExportDebug = document.getElementById('btn-export-debug');
 
     $btnStartReplay = document.getElementById('btn-start-replay');
     $btnViewBoard = document.getElementById('btn-view-board');
@@ -149,6 +150,8 @@
     if ($btnReplayPrev) $btnReplayPrev.addEventListener('click', onReplayPrev);
     if ($btnReplayPlay) $btnReplayPlay.addEventListener('click', onReplayTogglePlay);
     if ($btnReplayNext) $btnReplayNext.addEventListener('click', onReplayNext);
+
+    if ($btnExportDebug) $btnExportDebug.addEventListener('click', onExportDebug);
 
     if ($chkFoul) {
       $chkFoul.addEventListener('change', () => {
@@ -334,6 +337,43 @@
   function onCanvasMouseLeave() {
     hoverPos = null;
     render();
+  }
+
+  function onExportDebug() {
+    const historyNotation = game.moveHistory.map((m, idx) => {
+      const playerStr = m.player === BLACK ? '⚫' : '⚪';
+      const colStr = String.fromCharCode(65 + m.col);
+      const rowStr = 15 - m.row;
+      return `${idx + 1}. ${playerStr} ${colStr}${rowStr} (${m.row}, ${m.col})`;
+    });
+
+    const debugData = {
+      timestamp: new Date().toISOString(),
+      mode: mode,
+      playerColor: playerColor === BLACK ? 'BLACK' : 'WHITE',
+      enableFoul: game.enableFoul,
+      aiLevel: ai ? ai.level : 'medium',
+      pveSpeedBudget: $pveSpeed ? $pveSpeed.value : '500',
+      gameOver: game.gameOver,
+      winner: game.winner,
+      moveCount: game.moveHistory.length,
+      moveHistory: game.moveHistory,
+      formattedMoves: historyNotation
+    };
+
+    const jsonStr = JSON.stringify(debugData, null, 2);
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(jsonStr).then(() => {
+        showFoulToast('📋 已成功复制对局调试 JSON 到剪贴板！');
+      }).catch(err => {
+        console.log('[Gomoku Debug Export]\n' + jsonStr);
+        showFoulToast('📋 已输出对局数据到控制台 (F12)');
+      });
+    } else {
+      console.log('[Gomoku Debug Export]\n' + jsonStr);
+      showFoulToast('📋 已输出对局数据到控制台 (F12)');
+    }
   }
 
   function onUndo() {
