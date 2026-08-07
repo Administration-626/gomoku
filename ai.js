@@ -29,6 +29,11 @@ class GomokuAI {
 
     // 预计算棋盘 72 条线（15行 + 15列 + 21正斜 + 21反斜）
     this._initBoardLines();
+    // 构建 4 方向线索引快速查找表
+    this._initLineLookup();
+    // Zobrist 哈希表（15×15×2，黑/白各一随机数）
+    this._initZobrist();
+    this._transpositionTable = null;
   }
 
   /**
@@ -78,6 +83,135 @@ class GomokuAI {
       }
       if (line.length >= 5) this._linesIndices.push(line);
     }
+  }
+
+  /**
+   * 构建 4 方向线索引快速查找表
+   * _lineLookup[row][col][dir] = 线索引 (-1 表示不存在)
+   * dir: 0=行, 1=列, 2=正斜↘, 3=反斜↙
+   */
+  _initLineLookup() {
+    this._lineLookup = Array.from({ length: BOARD_SIZE }, () =>
+      Array.from({ length: BOARD_SIZE }, () => [-1, -1, -1, -1])
+    );
+
+    for (let r = 0; r < BOARD_SIZE; r++) {
+      for (let c = 0; c < BOARD_SIZE; c++) {
+        // 行: 索引 = r
+        this._lineLookup[r][c][0] = r;
+        // 列: 索引 = 15 + c
+        this._lineLookup[r][c][1] = 15 + c;
+        // 正斜线 ↘: k = r + c, 只收录 k=4..24 (索引 30..50)
+        const k2 = r + c;
+        if (k2 >= 4 && k2 <= 24) this._lineLookup[r][c][2] = 30 + (k2 - 4);
+        // 反斜线 ↙: k = r - c, 只收录 k=-10..10 (索引 51..71)
+        const k3 = r - c;
+        if (k3 >= -10 && k3 <= 10) this._lineLookup[r][c][3] = 51 + (k3 + 10);
+      }
+    }
+  }
+
+  /** 返回穿过 (r,c) 的 4 条线索引（可能含 -1） */
+  _getLineIndices(r, c) {
+    return this._lineLookup[r][c];
+  }
+
+  // =============================================
+  // 增量评估（替代全盘扫描 _evaluateBoard）
+  // =============================================
+
+  /** 计算单条线的评分（从 me 视角） */
+  _scoreLine(game, lineIndex, me) {
+    const opponent = me === BLACK ? WHITE : BLACK;
+    const coords = this._linesIndices[lineIndex];
+    let myStr = 'X', oppStr = 'X';
+    for (let i = 0; i < coords.length; i++) {
+      const val = game.board[coords[i].r][coords[i].c];
+      myStr += (val === me ? '1' : (val === EMPTY ? '0' : 'X'));
+      oppStr += (val === opponent ? '1' : (val === EMPTY ? '0' : 'X'));
+    }
+    myStr += 'X'; oppStr += 'X';
+    const sMe = this._scoreDirStr(myStr);
+    const sOpp = this._scoreDirStr(oppStr);
+    // 同 _evaluateBoard 的对手威胁惩罚权重
+    let oppWeight = sOpp >= 10000 ? 3.0 : (sOpp >= 1000 ? 2.0 : 1.0);
+    return sMe - sOpp * oppWeight * 1.25;
+  }
+
+  /** 全盘初始化 _boardScore 和 _lineScores 缓存 */
+  _initBoardScore(game, me) {
+    const n = this._linesIndices.length;
+    this._lineScores = new Array(n);
+    this._boardScore = 0;
+    for (let li = 0; li < n; li++) {
+      const score = this._scoreLine(game, li, me);
+      this._lineScores[li] = score;
+      this._boardScore += score;
+    }
+  }
+
+  /**
+   * 落子/悔棋后增量更新评分：只重算穿过 (r,c) 的 4 条线
+   * 务必在 game.board[row][col] 修改后调用
+   */
+  _updateBoardScore(game, row, col, me) {
+    const indices = this._getLineIndices(row, col);
+    let delta = 0;
+    for (let d = 0; d < 4; d++) {
+      const li = indices[d];
+      if (li === -1) continue;
+      const oldScore = this._lineScores[li];
+      const newScore = this._scoreLine(game, li, me);
+      if (newScore !== oldScore) {
+        this._lineScores[li] = newScore;
+        delta += (newScore - oldScore);
+      }
+    }
+    this._boardScore += delta;
+    return delta;
+  }
+
+  // =============================================
+  // Zobrist 哈希 + 置换表
+  // =============================================
+
+  /** 初始化 Zobrist 随机数表（确定性种子） */
+  _initZobrist() {
+    this._zobristTable = Array.from({ length: BOARD_SIZE }, () =>
+      Array.from({ length: BOARD_SIZE }, () => [0, 0, 0])
+    );
+    // 简单确定性伪随机（保证跨进程可复现）
+    let seed = 0x9E3779B9;
+    const rand = () => {
+      seed ^= seed << 13; seed >>>= 0;
+      seed ^= seed >> 17;
+      seed ^= seed << 5; seed >>>= 0;
+      return seed;
+    };
+    for (let r = 0; r < BOARD_SIZE; r++) {
+      for (let c = 0; c < BOARD_SIZE; c++) {
+        this._zobristTable[r][c][BLACK] = rand();
+        this._zobristTable[r][c][WHITE] = rand();
+      }
+    }
+  }
+
+  /** 计算当前棋盘初始哈希（所有非空棋子的随机数 XOR） */
+  _initHash(game) {
+    let h = 0;
+    for (let r = 0; r < BOARD_SIZE; r++) {
+      for (let c = 0; c < BOARD_SIZE; c++) {
+        const v = game.board[r][c];
+        if (v !== EMPTY) h ^= this._zobristTable[r][c][v];
+      }
+    }
+    return h >>> 0;
+  }
+
+  /** 落子/悔棋时增量更新哈希（XOR 自逆） */
+  _updateHash(row, col, color) {
+    this._hash ^= this._zobristTable[row][col][color];
+    this._hash >>>= 0;
   }
 
   /**
@@ -195,6 +329,13 @@ class GomokuAI {
     // 初始候选点按攻防启发式排序
     let sortedCandidates = this._sortCandidates(game, effectiveCandidates, me).slice(0, 15);
 
+    // 初始化增量评估（全盘只扫一次，后续搜索增量更新）
+    this._initBoardScore(game, me);
+    // 初始化 Zobrist 哈希与置换表
+    this._hash = this._initHash(game);
+    this._transpositionTable = new Map();
+    this._ttHits = 0;
+
     let globalBestMove = sortedCandidates[0].pos;
     let globalBestScore = -Infinity;
 
@@ -213,6 +354,8 @@ class GomokuAI {
 
         const pos = sortedCandidates[i].pos;
         game.board[pos.row][pos.col] = me;
+        this._updateBoardScore(game, pos.row, pos.col, me);
+        this._updateHash(pos.row, pos.col, me);
 
         const winLine = game._checkWin(pos.row, pos.col, me);
         let score;
@@ -223,6 +366,8 @@ class GomokuAI {
         }
 
         game.board[pos.row][pos.col] = EMPTY;
+        this._updateBoardScore(game, pos.row, pos.col, me);
+        this._updateHash(pos.row, pos.col, me);
 
         if (score > depthBestScore) {
           depthBestScore = score;
@@ -268,16 +413,35 @@ class GomokuAI {
    */
   _minimax(game, depth, alpha, beta, isMaximizing, me) {
     if (depth === 0 || this._timedOut || this._isTimeUp()) {
-      return this._evaluateBoard(game, me);
+      return this._boardScore;
+    }
+
+    // 置换表查询
+    const ttKey = this._hash;
+    const ttEntry = this._transpositionTable.get(ttKey);
+    if (ttEntry && ttEntry.depth >= depth && !this._timedOut) {
+      if (ttEntry.flag === 0) { // EXACT
+        this._ttHits++;
+        return ttEntry.score;
+      }
+      if (ttEntry.flag === 1) alpha = Math.max(alpha, ttEntry.score); // LOWER
+      else if (ttEntry.flag === 2) beta = Math.min(beta, ttEntry.score); // UPPER
+      if (alpha >= beta) {
+        this._ttHits++;
+        return ttEntry.score;
+      }
     }
 
     const opponent = me === BLACK ? WHITE : BLACK;
     const currentPlayer = isMaximizing ? me : opponent;
 
     const candidates = this._getNearbyEmpty(game, 2);
-    if (candidates.length === 0) return this._evaluateBoard(game, me);
+    if (candidates.length === 0) return this._boardScore;
 
     const sortedCandidates = this._sortCandidates(game, candidates, currentPlayer).slice(0, 12);
+
+    const origAlpha = alpha;
+    let bestPos = null;
 
     if (isMaximizing) {
       let maxEval = -Infinity;
@@ -286,6 +450,8 @@ class GomokuAI {
 
         const pos = item.pos;
         game.board[pos.row][pos.col] = me;
+        this._updateBoardScore(game, pos.row, pos.col, me);
+        this._updateHash(pos.row, pos.col, me);
 
         const winLine = game._checkWin(pos.row, pos.col, me);
         let ev;
@@ -296,11 +462,17 @@ class GomokuAI {
         }
 
         game.board[pos.row][pos.col] = EMPTY;
+        this._updateBoardScore(game, pos.row, pos.col, me);
+        this._updateHash(pos.row, pos.col, me);
 
-        maxEval = Math.max(maxEval, ev);
+        if (ev > maxEval) { maxEval = ev; bestPos = pos; }
         alpha = Math.max(alpha, ev);
         if (beta <= alpha) break; // Alpha 剪枝
       }
+
+      // 存表
+      let flag = (maxEval <= origAlpha) ? 2 : (maxEval >= beta ? 1 : 0);
+      this._transpositionTable.set(ttKey, { depth, score: maxEval, flag, pos: bestPos });
       return maxEval;
     } else {
       let minEval = Infinity;
@@ -317,6 +489,8 @@ class GomokuAI {
         }
 
         game.board[pos.row][pos.col] = opponent;
+        this._updateBoardScore(game, pos.row, pos.col, me);
+        this._updateHash(pos.row, pos.col, opponent);
 
         const winLine = game._checkWin(pos.row, pos.col, opponent);
         let ev;
@@ -327,11 +501,17 @@ class GomokuAI {
         }
 
         game.board[pos.row][pos.col] = EMPTY;
+        this._updateBoardScore(game, pos.row, pos.col, me);
+        this._updateHash(pos.row, pos.col, opponent);
 
-        minEval = Math.min(minEval, ev);
+        if (ev < minEval) { minEval = ev; bestPos = pos; }
         beta = Math.min(beta, ev);
         if (beta <= alpha) break; // Beta 剪枝
       }
+
+      // 存表
+      let flag = (minEval <= origAlpha) ? 2 : (minEval >= beta ? 1 : 0);
+      this._transpositionTable.set(ttKey, { depth, score: minEval, flag, pos: bestPos });
       return minEval;
     }
   }
@@ -398,6 +578,34 @@ class GomokuAI {
       const [r, c] = s.split(',').map(Number);
       return { row: r, col: c };
     });
+  }
+
+  /**
+   * 按威胁生成候选点：只保留能形成活三+ 或堵对方活三+ 的关键位置
+   * radius 1 全部保留，radius 2 只保留威胁点（干扰分支因子从 60→~20）
+   */
+  _getThreatMoves(game, player) {
+    const opponent = player === BLACK ? WHITE : BLACK;
+    const radius1 = this._getNearbyEmpty(game, 1);
+    // 早期局面：radius 1 太少则全部用 radius 2
+    if (radius1.length <= 5) return this._getNearbyEmpty(game, 2);
+
+    const radius1Set = new Set(radius1.map(p => `${p.row},${p.col}`));
+    const result = [...radius1];
+    const radius2 = this._getNearbyEmpty(game, 2);
+
+    for (const pos of radius2) {
+      const key = `${pos.row},${pos.col}`;
+      if (radius1Set.has(key)) continue;
+
+      const attack = this._evaluatePosition(game, pos.row, pos.col, player);
+      const defense = this._evaluatePosition(game, pos.row, pos.col, opponent);
+
+      if (attack >= 1000 || defense >= 1000) {
+        result.push(pos);
+      }
+    }
+    return result;
   }
 
   /**

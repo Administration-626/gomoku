@@ -1,0 +1,11 @@
+# 自动生成的游戏状态文件
+.active_game.json
+
+# 日志文件
+*.log
+
+# 临时/草稿文件夹
+scratch/
+
+# Node.js
+node_modules/

@@ -165,6 +165,7 @@
         $diffButtons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         ai = new GomokuAI(btn.dataset.level);
+        updateUI(); // 立即刷新左侧 AI 名称中的难度标注
       });
     });
 
@@ -184,6 +185,7 @@
         $eveBlackButtons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         eveBlackAI = new GomokuAI(btn.dataset.level);
+        updateUI(); // 立即刷新左侧 AI 名称中的难度标注
       });
     });
     $eveWhiteButtons.forEach(btn => {
@@ -191,6 +193,7 @@
         $eveWhiteButtons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         eveWhiteAI = new GomokuAI(btn.dataset.level);
+        updateUI(); // 立即刷新左侧 AI 名称中的难度标注
       });
     });
 
@@ -816,6 +819,19 @@
   // ========================
   // UI 同步
   // ========================
+  /** 将 AI 难度等级映射为中文显示名 */
+  function aiLevelLabel(level) {
+    const map = { easy: '简单', medium: '中等', hard: '困难' };
+    return map[level] || level || '中等';
+  }
+
+  /** 生成 AI 玩家名称：对局开始后显示难度，开始前只显示 AI */
+  function aiName(color, level) {
+    const base = `AI (${color === BLACK ? '黑' : '白'})`;
+    if (game.moveHistory.length === 0) return base;
+    return `${base} · ${aiLevelLabel(level)}`;
+  }
+
   function updatePlayerNames() {
     const $blackName = document.getElementById('black-name');
     const $whiteName = document.getElementById('white-name');
@@ -824,14 +840,14 @@
     if (mode === 'pve') {
       if (playerColor === BLACK) {
         $blackName.textContent = '玩家 1 (黑)';
-        $whiteName.textContent = 'AI (白)';
+        $whiteName.textContent = aiName(WHITE, ai.level);
       } else {
-        $blackName.textContent = 'AI (黑)';
+        $blackName.textContent = aiName(BLACK, ai.level);
         $whiteName.textContent = '玩家 1 (白)';
       }
     } else if (mode === 'eve') {
-      $blackName.textContent = 'AI (黑)';
-      $whiteName.textContent = 'AI (白)';
+      $blackName.textContent = aiName(BLACK, eveBlackAI.level);
+      $whiteName.textContent = aiName(WHITE, eveWhiteAI.level);
     } else {
       $blackName.textContent = '玩家 1 (黑)';
       $whiteName.textContent = '玩家 2 (白)';
