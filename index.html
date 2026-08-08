@@ -108,7 +108,19 @@
 
           <!-- Tab 1: AI 导师与盘面推演 -->
           <div id="study-tab-mentor" class="study-subpanel">
-            <div class="win-rate-container">
+            <div class="form-group">
+              <label class="speed-label">AI 导师难度
+                <select id="mentor-diff-select" class="eve-select">
+                  <option value="medium" selected>中等难度 (推荐学习)</option>
+                  <option value="hard">困难难度 (挑错拆招)</option>
+                </select>
+              </label>
+            </div>
+            <div class="btn-group-row" style="margin-top: var(--space-xs);">
+              <button class="btn btn-sm btn-mentor-color active" data-color="black">⚫ 执黑先手</button>
+              <button class="btn btn-sm btn-mentor-color" data-color="white">⚪ 执白后手</button>
+            </div>
+            <div class="win-rate-container" style="margin-top: var(--space-xs);">
               <div class="win-rate-header">
                 <span>实时预估胜率 (黑 vs 白)</span>
                 <span id="win-rate-val">50%</span>
@@ -117,17 +129,17 @@
                 <div id="win-rate-bar-fill" class="win-rate-bar-fill" style="width: 50%;"></div>
               </div>
             </div>
-            <div style="margin-top: var(--space-sm);">
+            <div style="margin-top: var(--space-xs);">
               <label class="toggle-label" style="font-size: 0.8rem;">
-                <input type="checkbox" id="chk-show-hints">
-                <span>💡 盘面显示 AI 最佳推荐点</span>
+                <input type="checkbox" id="chk-show-hints" checked>
+                <span>💡 盘面常驻高亮显示 AI 最佳推荐点</span>
               </label>
-              <label class="toggle-label" style="font-size: 0.8rem; margin-top: 4px;">
+              <label class="toggle-label" style="font-size: 0.8rem; margin-top: 2px;">
                 <input type="checkbox" id="chk-show-foul-radar">
                 <span>⚠️ 开启黑棋禁手危险雷达</span>
               </label>
             </div>
-            <button id="btn-get-hint" class="btn btn-primary" style="margin-top: var(--space-sm); width: 100%;">💡 获取当前推演建议</button>
+            <button id="btn-get-hint" class="btn btn-primary" style="margin-top: var(--space-xs); width: 100%;">💡 获取当前推演解析</button>
             <button id="btn-analyze-game" class="btn btn-secondary" style="margin-top: var(--space-xs); width: 100%;">🔍 深度 AI 复盘诊断</button>
           </div>
 

@@ -312,6 +312,28 @@
   // 学习模式功能初始化与处理
   // ========================
   function initStudyMode() {
+    // AI 导师难度选择器
+    const $mentorDiffSelect = document.getElementById('mentor-diff-select');
+    if ($mentorDiffSelect) {
+      $mentorDiffSelect.value = 'medium'; // 学习模式默认缺省为中等难度！
+      ai = new GomokuAI('medium');
+      $mentorDiffSelect.addEventListener('change', (e) => {
+        ai = new GomokuAI(e.target.value);
+        showFoulToast(`💡 AI 导师难度已设置为【${aiLevelLabel(e.target.value)}】`);
+      });
+    }
+
+    // 导师模式执子选边按钮
+    const $mentorColorBtns = document.querySelectorAll('.btn-mentor-color');
+    $mentorColorBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        $mentorColorBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        playerColor = btn.dataset.color === 'white' ? WHITE : BLACK;
+        onRestart();
+      });
+    });
+
     // 填充残局下拉列表
     if ($puzzleSelect && window.STUDY_PUZZLES) {
       $puzzleSelect.innerHTML = '';
@@ -388,6 +410,9 @@
         loadOpening(0);
       }
     } else if (tabName === 'mentor') {
+      ai = new GomokuAI('medium'); // 默认中等
+      const $mentorDiffSelect = document.getElementById('mentor-diff-select');
+      if ($mentorDiffSelect) $mentorDiffSelect.value = 'medium';
       onRestart();
       updateWinRateUI();
     }
@@ -478,7 +503,7 @@
     if (topMoves.length > 0) {
       const best = topMoves[0];
       const coordStr = `${String.fromCharCode(65 + best.col)}${15 - best.row}`;
-      showFoulToast(`💡 导师推荐着法: ${coordStr} — ${best.reason}`);
+      showFoulToast(`💡 导师推荐: ${coordStr} — ${best.reason}`);
     }
     render();
   }
@@ -983,7 +1008,7 @@
     drawBoard();
     drawStones(now);
     drawHover();
-    drawStudyHighlights();
+    drawStudyHighlights(now);
     drawLastMove(scale);
     drawWinLine();
   }
