@@ -642,27 +642,45 @@ body {
   display: flex;
   justify-content: space-between;
   font-size: 0.78rem;
-  color: var(--text-secondary);
   margin-bottom: 6px;
 }
 
-#win-rate-val {
-  font-weight: 700;
+.win-rate-party-black {
+  color: #f8fafc;
+  font-weight: 500;
+}
+
+.win-rate-party-black strong {
   color: var(--accent-gold);
 }
 
+.win-rate-party-white {
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+.win-rate-party-white strong {
+  color: #38bdf8;
+}
+
+/* 专业黑白对决胜率条：黑色占比多代表黑胜率高，白色占比多代表白胜率高 */
 .win-rate-bar-bg {
-  height: 8px;
+  height: 12px;
   width: 100%;
-  background: #334155;
-  border-radius: 4px;
+  background: #f1f5f9; /* 代表白方胜率（右边浅白） */
+  border-radius: 6px;
   overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+  position: relative;
 }
 
 .win-rate-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #10b981 0%, var(--accent-gold) 50%, #ef4444 100%);
-  transition: width 0.4s ease-out;
+  background: #0f172a; /* 代表黑方胜率（左边深黑） */
+  border-right: 2px solid var(--accent-gold); /* 黑白接缝金光线条 */
+  box-shadow: 2px 0 6px rgba(212, 165, 74, 0.6);
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* 残局 & 定式 信息框 */

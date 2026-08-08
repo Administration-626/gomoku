@@ -510,9 +510,15 @@
 
   function updateWinRateUI() {
     if (!ai || typeof ai.evaluateWinRate !== 'function') return;
-    const rate = ai.evaluateWinRate(game, BLACK);
-    if ($winRateVal) $winRateVal.textContent = `${rate}% (黑) / ${100 - rate}% (白)`;
-    if ($winRateBarFill) $winRateBarFill.style.width = `${rate}%`;
+    const blackRate = ai.evaluateWinRate(game, BLACK);
+    const whiteRate = 100 - blackRate;
+
+    const $winRateBlackVal = document.getElementById('win-rate-black-val');
+    const $winRateWhiteVal = document.getElementById('win-rate-white-val');
+
+    if ($winRateBlackVal) $winRateBlackVal.textContent = `${blackRate}%`;
+    if ($winRateWhiteVal) $winRateWhiteVal.textContent = `${whiteRate}%`;
+    if ($winRateBarFill) $winRateBarFill.style.width = `${blackRate}%`;
   }
 
   function runFullGameReview() {
