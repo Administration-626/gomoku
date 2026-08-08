@@ -812,6 +812,177 @@ class GomokuAI {
 
     return null;
   }
+
+  // =============================================
+  // 学习模式工具：AI 导师提示、胜率评估与复盘诊断
+  // =============================================
+
+  /**
+   * 获取当前盘面 Top N 最佳着法推荐（带得分与战术解析）
+   * @param {GomokuGame} game 
+   * @param {number} topN 
+   * @returns {Array<{row: number, col: number, score: number, rank: number, reason: string}>}
+   */
+  getTopMoves(game, topN = 3) {
+    if (game.gameOver) return [];
+    const me = game.currentPlayer;
+    const opponent = me === BLACK ? WHITE : BLACK;
+
+    // 1. 先查 VCF 必胜点
+    const vcfMove = this._findVCF(game, me, 8);
+    if (vcfMove) {
+      return [{
+        row: vcfMove.row, col: vcfMove.col,
+        score: 99999, rank: 1,
+        reason: '💥 发现 VCF 冲四必胜连招！落子即可连杀获胜'
+      }];
+    }
+
+    // 2. 查防守 VCF 点
+    const oppVCF = this._findVCF(game, opponent, 8);
+    if (oppVCF) {
+
+      // 若黑棋禁手规则开启且该位置为禁手，则忽略
+      let isFoul = false;
+      if (me === BLACK && game.enableFoul && typeof game.checkFoul === 'function') {
+        if (game.checkFoul(oppVCF.row, oppVCF.col, BLACK)) isFoul = true;
+      }
+      if (!isFoul) {
+        return [{
+          row: oppVCF.row, col: oppVCF.col,
+          score: 95000, rank: 1,
+          reason: '🛡️ 紧急封堵！对手已形成 VCF 杀局威胁'
+        }];
+      }
+    }
+
+    const candidates = this._getNearbyEmpty(game, 2);
+    if (candidates.length === 0) {
+      return [{ row: 7, col: 7, score: 100, rank: 1, reason: '开局占领天元要地' }];
+    }
+
+    const sorted = this._sortCandidates(game, candidates, me);
+    const topList = sorted.slice(0, topN);
+
+    return topList.map((item, idx) => {
+      const pos = item.pos;
+      const attackScore = this._evaluatePosition(game, pos.row, pos.col, me);
+      const defenseScore = this._evaluatePosition(game, pos.row, pos.col, opponent);
+
+      let reason = '攻守兼备要点';
+      if (attackScore >= this.SCORES.LIVE_FOUR) {
+        reason = '🔥 形成活四，下回合即胜';
+      } else if (attackScore >= this.SCORES.RUSH_FOUR) {
+        reason = '⚡ 形成冲四攻势，逼迫对手封堵';
+      } else if (defenseScore >= this.SCORES.LIVE_FOUR || defenseScore >= this.SCORES.RUSH_FOUR) {
+        reason = '🛡️ 关键防守要点，化解对方高危杀招';
+      } else if (attackScore >= this.SCORES.LIVE_THREE) {
+        reason = '✨ 形成活三，创造后续多重杀招';
+      } else if (defenseScore >= this.SCORES.LIVE_THREE) {
+        reason = '🛡️ 及时拦截对手活三拓展';
+      } else if (attackScore >= this.SCORES.LIVE_TWO) {
+        reason = '🌱 展开活二局面，铺陈进攻阵型';
+      }
+
+      return {
+        row: pos.row,
+        col: pos.col,
+        score: Math.round(item.score),
+        rank: idx + 1,
+        reason
+      };
+    });
+  }
+
+  /**
+   * 计算当前局势下指定玩家的胜率百分比 (0 ~ 100)
+   * @param {GomokuGame} game 
+   * @param {number} player 
+   * @returns {number} 胜率 (50 为势均力敌)
+   */
+  evaluateWinRate(game, player = BLACK) {
+    if (game.gameOver) {
+      if (game.winner === player) return 100;
+      if (game.winner === EMPTY) return 50;
+      return 0;
+    }
+
+    this._initBoardScore(game, player);
+    const score = this._boardScore;
+
+    // 使用 S 型 Sigmoid 映射为胜率百分比
+    const k = 0.0005; // 缩放系数
+    const winRate = 1 / (1 + Math.exp(-k * score));
+    return Math.max(1, Math.min(99, Math.round(winRate * 100)));
+  }
+
+  /**
+   * 全局复盘诊断：评估每一步的走法质量
+   * @param {Array<{row: number, col: number, player: number}>} history 
+   * @param {boolean} enableFoul 
+   * @returns {Array<{step: number, row: number, col: number, player: number, quality: 'good'|'normal'|'inaccurate'|'blunder', bestMove: {row: number, col: number}, comment: string}>}
+   */
+  analyzeHistory(history, enableFoul = false) {
+    if (!history || history.length === 0) return [];
+
+    const simGame = new GomokuGame();
+    simGame.enableFoul = enableFoul;
+
+    // 实例化独立 AI 仿真器，完全解耦主 AI 实例的评分缓存与置换表
+    const simAI = new GomokuAI(this.level);
+    const analysisResult = [];
+
+    for (let i = 0; i < history.length; i++) {
+      const move = history[i];
+      const player = move.player;
+
+      // 评估在走这一步前的最佳着法
+      const topMoves = simAI.getTopMoves(simGame, 3);
+      const bestMove = topMoves.length > 0 ? topMoves[0] : move;
+
+      // 执行实际走法
+      const evalPlayed = simAI._evaluatePosition(simGame, move.row, move.col, player);
+      const evalBest = simAI._evaluatePosition(simGame, bestMove.row, bestMove.col, player);
+
+      const res = simGame.placeStone(move.row, move.col);
+
+      let quality = 'normal';
+      let comment = '稳健落子';
+
+      const isSameAsBest = (move.row === bestMove.row && move.col === bestMove.col);
+      const scoreDiff = evalBest - evalPlayed;
+
+      if (isSameAsBest || scoreDiff <= 100) {
+        if (evalPlayed >= this.SCORES.LIVE_THREE || bestMove.score >= this.SCORES.RUSH_FOUR) {
+          quality = 'good';
+          comment = '🌟 妙手/精准攻击或关键防守';
+        } else {
+          quality = 'normal';
+          comment = '✅ 好棋，符合标准思路';
+        }
+      } else if (scoreDiff > 3000) {
+        quality = 'blunder';
+        comment = `❌ 败着！漏防重大威胁，建议改走 (${String.fromCharCode(65 + bestMove.col)}${15 - bestMove.row})`;
+      } else if (scoreDiff > 800) {
+        quality = 'inaccurate';
+        comment = `⚠️ 缓着，错失更好的战术位 (${String.fromCharCode(65 + bestMove.col)}${15 - bestMove.row})`;
+      }
+
+      analysisResult.push({
+        step: i + 1,
+        row: move.row,
+        col: move.col,
+        player,
+        quality,
+        bestMove: { row: bestMove.row, col: bestMove.col },
+        comment
+      });
+
+      if (res.winner !== undefined) break;
+    }
+
+    return analysisResult;
+  }
 }
 
 if (typeof window !== 'undefined') {
@@ -820,3 +991,4 @@ if (typeof window !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { GomokuAI };
 }
+

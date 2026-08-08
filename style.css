@@ -610,3 +610,133 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ============================================
+   学习模式 (Study Mode) 专属 CSS
+   ============================================ */
+
+.btn-study-tab.active {
+  background: linear-gradient(135deg, rgba(212, 165, 74, 0.25), rgba(74, 144, 217, 0.25));
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+  font-weight: 600;
+}
+
+.study-subpanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+/* 胜率评估条 */
+.win-rate-container {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+  margin-top: var(--space-xs);
+}
+
+.win-rate-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+#win-rate-val {
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+
+.win-rate-bar-bg {
+  height: 8px;
+  width: 100%;
+  background: #334155;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.win-rate-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981 0%, var(--accent-gold) 50%, #ef4444 100%);
+  transition: width 0.4s ease-out;
+}
+
+/* 残局 & 定式 信息框 */
+.puzzle-info-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(212, 165, 74, 0.3);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm);
+}
+
+.puzzle-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--accent-gold);
+  margin-bottom: 4px;
+}
+
+.puzzle-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* AI 全局复盘诊断列表 */
+.ai-review-container {
+  max-height: 200px;
+  overflow-y: auto;
+  border-top: 1px solid var(--border-card);
+  padding-top: var(--space-xs);
+}
+
+.ai-review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.review-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.02);
+  transition: background var(--transition-fast);
+}
+
+.review-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.review-item.good {
+  border-left: 3px solid #10b981;
+}
+
+.review-item.inaccurate {
+  border-left: 3px solid #f59e0b;
+}
+
+.review-item.blunder {
+  border-left: 3px solid #ef4444;
+}
+
+.review-step {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.review-comment {
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 140px;
+}
+

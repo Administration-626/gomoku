@@ -84,6 +84,7 @@
             <button id="btn-pvp" class="btn btn-mode">双人对战</button>
             <button id="btn-pve" class="btn btn-mode active">人机对弈</button>
             <button id="btn-eve" class="btn btn-mode">AI 对战</button>
+            <button id="btn-study" class="btn btn-mode">🎓 学习与特训</button>
           </div>
         </div>
 
@@ -94,6 +95,72 @@
             <input type="checkbox" id="chk-foul">
             <span class="toggle-text">🛡️ 禁手规则 (黑棋三三/四四/长连)</span>
           </label>
+        </div>
+
+        <!-- 学习模式卡片 -->
+        <div id="study-card" class="card hidden">
+          <h3>🎓 学习与特训中心</h3>
+          <div class="btn-group-row" style="margin-bottom: var(--space-sm);">
+            <button id="btn-tab-mentor" class="btn btn-sm btn-study-tab active">💡 AI 导师</button>
+            <button id="btn-tab-puzzle" class="btn btn-sm btn-study-tab">🧩 残局闯关</button>
+            <button id="btn-tab-opening" class="btn btn-sm btn-study-tab">📚 开局定式</button>
+          </div>
+
+          <!-- Tab 1: AI 导师与盘面推演 -->
+          <div id="study-tab-mentor" class="study-subpanel">
+            <div class="win-rate-container">
+              <div class="win-rate-header">
+                <span>实时预估胜率 (黑 vs 白)</span>
+                <span id="win-rate-val">50%</span>
+              </div>
+              <div class="win-rate-bar-bg">
+                <div id="win-rate-bar-fill" class="win-rate-bar-fill" style="width: 50%;"></div>
+              </div>
+            </div>
+            <div style="margin-top: var(--space-sm);">
+              <label class="toggle-label" style="font-size: 0.8rem;">
+                <input type="checkbox" id="chk-show-hints">
+                <span>💡 盘面显示 AI 最佳推荐点</span>
+              </label>
+              <label class="toggle-label" style="font-size: 0.8rem; margin-top: 4px;">
+                <input type="checkbox" id="chk-show-foul-radar">
+                <span>⚠️ 开启黑棋禁手危险雷达</span>
+              </label>
+            </div>
+            <button id="btn-get-hint" class="btn btn-primary" style="margin-top: var(--space-sm); width: 100%;">💡 获取当前推演建议</button>
+            <button id="btn-analyze-game" class="btn btn-secondary" style="margin-top: var(--space-xs); width: 100%;">🔍 深度 AI 复盘诊断</button>
+          </div>
+
+          <!-- Tab 2: 残局特训闯关 -->
+          <div id="study-tab-puzzle" class="study-subpanel hidden">
+            <div class="form-group">
+              <label class="speed-label">选择关卡
+                <select id="puzzle-select" class="eve-select"></select>
+              </label>
+            </div>
+            <div id="puzzle-info-box" class="puzzle-info-box" style="margin-top: var(--space-sm);">
+              <div id="puzzle-title" class="puzzle-title">关卡 1</div>
+              <div id="puzzle-desc" class="puzzle-desc">关卡目标说明</div>
+            </div>
+            <div class="btn-group-row" style="margin-top: var(--space-sm);">
+              <button id="btn-puzzle-hint" class="btn btn-secondary btn-sm">💡 提示</button>
+              <button id="btn-puzzle-reset" class="btn btn-secondary btn-sm">🔄 重置关卡</button>
+            </div>
+          </div>
+
+          <!-- Tab 3: 经典开局定式 -->
+          <div id="study-tab-opening" class="study-subpanel hidden">
+            <div class="form-group">
+              <label class="speed-label">连珠经典定式
+                <select id="opening-select" class="eve-select"></select>
+              </label>
+            </div>
+            <div id="opening-info-box" class="puzzle-info-box" style="margin-top: var(--space-sm);">
+              <div id="opening-name" class="puzzle-title">花月局</div>
+              <div id="opening-desc" class="puzzle-desc">定式介绍</div>
+            </div>
+            <button id="btn-opening-demo" class="btn btn-primary" style="margin-top: var(--space-sm); width: 100%;">▶ 自动演示定式打谱</button>
+          </div>
         </div>
 
         <!-- 调试工具 -->
@@ -153,13 +220,18 @@
 
         <!-- 棋局回放与复盘控制卡片 -->
         <div id="replay-card" class="card hidden">
-          <h3>🎬 对局回放</h3>
+          <h3>🎬 对局回放与复盘诊断</h3>
           <div class="btn-group-row">
             <button id="btn-replay-prev" class="btn btn-secondary btn-sm">⏮ 上一步</button>
             <button id="btn-replay-play" class="btn btn-primary btn-sm">▶ 自动播放</button>
             <button id="btn-replay-next" class="btn btn-secondary btn-sm">下一步 ⏭</button>
           </div>
           <div id="replay-progress" class="replay-progress">第 0 / 0 手</div>
+          <!-- AI 复盘分析列表容器 -->
+          <div id="ai-review-container" class="ai-review-container hidden" style="margin-top: var(--space-sm);">
+            <div style="font-size: 0.8rem; font-weight: 600; color: var(--accent-gold); margin-bottom: 6px;">🔍 AI 全局对局诊断</div>
+            <div id="ai-review-list" class="ai-review-list"></div>
+          </div>
         </div>
 
         <!-- 操作按钮 -->
@@ -196,6 +268,7 @@
 
   <script src="game.js"></script>
   <script src="ai.js"></script>
+  <script src="study.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

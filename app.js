@@ -24,13 +24,12 @@
   ];
 
   // ========================
-  // ========================
   // DOM 引用
   // ========================
   let canvas, ctx;
   let $playerBlack, $playerWhite, $moveHistory, $statusText, $winOverlay, $winText;
-  let $btnPvP, $btnPvE, $btnEve, $btnUndo, $btnRestart, $btnRestartOverlay;
-  let $aiSettings, $eveSettings, $btnEveStart, $btnPvEStart;
+  let $btnPvP, $btnPvE, $btnEve, $btnStudy, $btnUndo, $btnRestart, $btnRestartOverlay;
+  let $aiSettings, $eveSettings, $studyCard, $btnEveStart, $btnPvEStart;
   let $diffButtons, $playerColorButtons, $eveBlackButtons, $eveWhiteButtons, $eveSpeed, $pveSpeed;
   let $chkFoul, $foulToast, foulToastTimer, $btnExportDebug;
   let $statBlack, $statWhite, $statDraw;
@@ -38,12 +37,20 @@
   let $btnStartReplay, $btnViewBoard;
   let $replayCard, $btnReplayPrev, $btnReplayPlay, $btnReplayNext, $replayProgress;
 
+  // 学习模式 DOM
+  let $btnTabMentor, $btnTabPuzzle, $btnTabOpening;
+  let $studyTabMentor, $studyTabPuzzle, $studyTabOpening;
+  let $winRateVal, $winRateBarFill, $chkShowHints, $chkShowFoulRadar, $btnGetHint, $btnAnalyzeGame;
+  let $puzzleSelect, $puzzleTitle, $puzzleDesc, $btnPuzzleHint, $btnPuzzleReset;
+  let $openingSelect, $openingName, $openingDesc, $btnOpeningDemo;
+  let $aiReviewContainer, $aiReviewList;
+
   // ========================
   // 状态
   // ========================
   let game = new GomokuGame();
   let ai = new GomokuAI('medium');
-  let mode = 'pve';          // 默认开启人机对弈 'pve'
+  let mode = 'pve';          // 'pvp' | 'pve' | 'eve' | 'study'
   let aiThinking = false;
   let hoverPos = null;        // 鼠标悬停位置 {row, col}
   let lastMovePos = null;     // 最后一步位置
@@ -64,6 +71,16 @@
   let replayPlaying = false;    // 是否处于自动回放中
   let replayTimer = null;       // 自动播放定时器 ID
   let savedHistory = [];        // 终局时保存的全部落子历史
+
+  // 学习模式状态
+  let studySubTab = 'mentor';   // 'mentor' | 'puzzle' | 'opening'
+  let activePuzzle = null;
+  let activePuzzleStep = 0;
+  let activeOpening = null;
+  let openingDemoTimer = null;
+  let studyHints = [];          // [{row, col, rank, reason, score}]
+  let activeReviewData = [];    // AI 全局复盘数据
+  let selectedReviewStep = null;
 
   let playerColor = BLACK; // 默认玩家执黑先手 (BLACK | WHITE)
   let stats = { black: 0, white: 0, draw: 0 };
@@ -95,11 +112,13 @@
     $btnPvP = document.getElementById('btn-pvp');
     $btnPvE = document.getElementById('btn-pve');
     $btnEve = document.getElementById('btn-eve');
+    $btnStudy = document.getElementById('btn-study');
     $btnUndo = document.getElementById('btn-undo');
     $btnRestart = document.getElementById('btn-restart');
     $btnRestartOverlay = document.getElementById('btn-restart-overlay');
     $aiSettings = document.getElementById('ai-settings');
     $eveSettings = document.getElementById('eve-settings');
+    $studyCard = document.getElementById('study-card');
     $btnEveStart = document.getElementById('btn-eve-start');
     $btnPvEStart = document.getElementById('btn-pve-start');
     $diffButtons = document.querySelectorAll('.btn-diff');
@@ -121,6 +140,31 @@
     $btnReplayNext = document.getElementById('btn-replay-next');
     $replayProgress = document.getElementById('replay-progress');
 
+    // 学习模式 DOM
+    $btnTabMentor = document.getElementById('btn-tab-mentor');
+    $btnTabPuzzle = document.getElementById('btn-tab-puzzle');
+    $btnTabOpening = document.getElementById('btn-tab-opening');
+    $studyTabMentor = document.getElementById('study-tab-mentor');
+    $studyTabPuzzle = document.getElementById('study-tab-puzzle');
+    $studyTabOpening = document.getElementById('study-tab-opening');
+    $winRateVal = document.getElementById('win-rate-val');
+    $winRateBarFill = document.getElementById('win-rate-bar-fill');
+    $chkShowHints = document.getElementById('chk-show-hints');
+    $chkShowFoulRadar = document.getElementById('chk-show-foul-radar');
+    $btnGetHint = document.getElementById('btn-get-hint');
+    $btnAnalyzeGame = document.getElementById('btn-analyze-game');
+    $puzzleSelect = document.getElementById('puzzle-select');
+    $puzzleTitle = document.getElementById('puzzle-title');
+    $puzzleDesc = document.getElementById('puzzle-desc');
+    $btnPuzzleHint = document.getElementById('btn-puzzle-hint');
+    $btnPuzzleReset = document.getElementById('btn-puzzle-reset');
+    $openingSelect = document.getElementById('opening-select');
+    $openingName = document.getElementById('opening-name');
+    $openingDesc = document.getElementById('opening-desc');
+    $btnOpeningDemo = document.getElementById('btn-opening-demo');
+    $aiReviewContainer = document.getElementById('ai-review-container');
+    $aiReviewList = document.getElementById('ai-review-list');
+
     $statBlack = document.getElementById('stat-black');
     $statWhite = document.getElementById('stat-white');
     $statDraw = document.getElementById('stat-draw');
@@ -141,6 +185,7 @@
     if ($btnPvP) $btnPvP.addEventListener('click', () => setMode('pvp'));
     if ($btnPvE) $btnPvE.addEventListener('click', () => setMode('pve'));
     if ($btnEve) $btnEve.addEventListener('click', () => setMode('eve'));
+    if ($btnStudy) $btnStudy.addEventListener('click', () => setMode('study'));
     if ($btnUndo) $btnUndo.addEventListener('click', onUndo);
     if ($btnRestart) $btnRestart.addEventListener('click', onRestart);
     if ($btnRestartOverlay) $btnRestartOverlay.addEventListener('click', onRestart);
@@ -159,6 +204,39 @@
         console.log('[Foul Rule Toggle]', game.enableFoul ? 'ENABLED' : 'DISABLED');
       });
     }
+
+    // 学习模式 DOM 事件绑定
+    if ($btnTabMentor) $btnTabMentor.addEventListener('click', () => switchStudyTab('mentor'));
+    if ($btnTabPuzzle) $btnTabPuzzle.addEventListener('click', () => switchStudyTab('puzzle'));
+    if ($btnTabOpening) $btnTabOpening.addEventListener('click', () => switchStudyTab('opening'));
+
+    if ($btnGetHint) {
+      $btnGetHint.addEventListener('click', () => {
+        fetchAIHints();
+      });
+    }
+
+    if ($btnAnalyzeGame) {
+      $btnAnalyzeGame.addEventListener('click', () => {
+        runFullGameReview();
+      });
+    }
+
+    if ($chkShowHints) {
+      $chkShowHints.addEventListener('change', () => {
+        if ($chkShowHints.checked) fetchAIHints();
+        else studyHints = [];
+        render();
+      });
+    }
+
+    if ($chkShowFoulRadar) {
+      $chkShowFoulRadar.addEventListener('change', () => {
+        render();
+      });
+    }
+
+    initStudyMode();
 
     $diffButtons.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -231,6 +309,228 @@
   }
 
   // ========================
+  // 学习模式功能初始化与处理
+  // ========================
+  function initStudyMode() {
+    // 填充残局下拉列表
+    if ($puzzleSelect && window.STUDY_PUZZLES) {
+      $puzzleSelect.innerHTML = '';
+      window.STUDY_PUZZLES.forEach((p, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = `[${p.difficulty}] ${p.title}`;
+        $puzzleSelect.appendChild(opt);
+      });
+      $puzzleSelect.addEventListener('change', (e) => {
+        loadPuzzle(parseInt(e.target.value));
+      });
+    }
+
+    // 填充开局定式下拉列表
+    if ($openingSelect && window.OPENING_BOOK_LESSONS) {
+      $openingSelect.innerHTML = '';
+      window.OPENING_BOOK_LESSONS.forEach((o, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = `${o.name} (${o.type})`;
+        $openingSelect.appendChild(opt);
+      });
+      $openingSelect.addEventListener('change', (e) => {
+        loadOpening(parseInt(e.target.value));
+      });
+    }
+
+    if ($btnPuzzleReset) {
+      $btnPuzzleReset.addEventListener('click', () => {
+        if (activePuzzle) loadPuzzle(window.STUDY_PUZZLES.indexOf(activePuzzle));
+      });
+    }
+
+    if ($btnPuzzleHint) {
+      $btnPuzzleHint.addEventListener('click', () => {
+        if (!activePuzzle) return;
+        const sol = activePuzzle.solution[activePuzzleStep];
+        if (sol) {
+          const coordStr = `${String.fromCharCode(65 + sol.col)}${15 - sol.row}`;
+          showFoulToast(`💡 提示：下一步推荐落子位置为 ${coordStr}`);
+          studyHints = [{ row: sol.row, col: sol.col, rank: 1, reason: activePuzzle.hint || '推荐突破点' }];
+          render();
+        }
+      });
+    }
+
+    if ($btnOpeningDemo) {
+      $btnOpeningDemo.addEventListener('click', () => {
+        demoOpening();
+      });
+    }
+  }
+
+  function switchStudyTab(tabName) {
+    studySubTab = tabName;
+    if ($btnTabMentor) $btnTabMentor.classList.toggle('active', tabName === 'mentor');
+    if ($btnTabPuzzle) $btnTabPuzzle.classList.toggle('active', tabName === 'puzzle');
+    if ($btnTabOpening) $btnTabOpening.classList.toggle('active', tabName === 'opening');
+
+    if ($studyTabMentor) $studyTabMentor.classList.toggle('hidden', tabName !== 'mentor');
+    if ($studyTabPuzzle) $studyTabPuzzle.classList.toggle('hidden', tabName !== 'puzzle');
+    if ($studyTabOpening) $studyTabOpening.classList.toggle('hidden', tabName !== 'opening');
+
+    studyHints = [];
+    stopOpeningDemo();
+
+    if (tabName === 'puzzle') {
+      if (window.STUDY_PUZZLES && window.STUDY_PUZZLES.length > 0) {
+        loadPuzzle(0);
+      }
+    } else if (tabName === 'opening') {
+      if (window.OPENING_BOOK_LESSONS && window.OPENING_BOOK_LESSONS.length > 0) {
+        loadOpening(0);
+      }
+    } else if (tabName === 'mentor') {
+      onRestart();
+      updateWinRateUI();
+    }
+  }
+
+  function loadPuzzle(index) {
+    if (!window.STUDY_PUZZLES || !window.STUDY_PUZZLES[index]) return;
+    activePuzzle = window.STUDY_PUZZLES[index];
+    activePuzzleStep = 0;
+    studyHints = [];
+    stopOpeningDemo();
+
+    if ($puzzleTitle) $puzzleTitle.textContent = activePuzzle.title;
+    if ($puzzleDesc) $puzzleDesc.textContent = activePuzzle.description;
+
+    game.reset();
+    game.enableFoul = activePuzzle.enableFoul;
+
+    // 加载初始棋子
+    activePuzzle.initialMoves.forEach(m => {
+      game.board[m.row][m.col] = m.player;
+      game.moveHistory.push(m);
+    });
+
+    game.currentPlayer = activePuzzle.player;
+    lastMovePos = game.moveHistory.length > 0 ? game.moveHistory[game.moveHistory.length - 1] : null;
+
+    render();
+    updateUI();
+    showFoulToast(`🧩 已载入特训残局：${activePuzzle.title}`);
+  }
+
+  function loadOpening(index) {
+    if (!window.OPENING_BOOK_LESSONS || !window.OPENING_BOOK_LESSONS[index]) return;
+    activeOpening = window.OPENING_BOOK_LESSONS[index];
+    studyHints = [];
+    stopOpeningDemo();
+
+    if ($openingName) $openingName.textContent = `${activeOpening.name} (${activeOpening.type})`;
+    if ($openingDesc) $openingDesc.textContent = activeOpening.description;
+
+    game.reset();
+    activeOpening.moves.forEach(m => {
+      game.board[m.row][m.col] = m.player;
+      game.moveHistory.push(m);
+    });
+
+    lastMovePos = game.moveHistory.length > 0 ? game.moveHistory[game.moveHistory.length - 1] : null;
+    render();
+    updateUI();
+  }
+
+  function demoOpening() {
+    if (!activeOpening) return;
+    stopOpeningDemo();
+
+    game.reset();
+    render();
+    updateUI();
+
+    let stepIdx = 0;
+    openingDemoTimer = setInterval(() => {
+      if (stepIdx < activeOpening.moves.length) {
+        const m = activeOpening.moves[stepIdx];
+        game.placeStone(m.row, m.col);
+        lastMovePos = { row: m.row, col: m.col };
+        stoneAnimStart = performance.now();
+        requestAnimationFrame(animLoop);
+        updateUI();
+        stepIdx++;
+      } else {
+        stopOpeningDemo();
+      }
+    }, 700);
+  }
+
+  function stopOpeningDemo() {
+    if (openingDemoTimer) {
+      clearInterval(openingDemoTimer);
+      openingDemoTimer = null;
+    }
+  }
+
+  function fetchAIHints() {
+    if (game.gameOver) return;
+    const topMoves = ai.getTopMoves(game, 3);
+    studyHints = topMoves;
+    if (topMoves.length > 0) {
+      const best = topMoves[0];
+      const coordStr = `${String.fromCharCode(65 + best.col)}${15 - best.row}`;
+      showFoulToast(`💡 导师推荐着法: ${coordStr} — ${best.reason}`);
+    }
+    render();
+  }
+
+  function updateWinRateUI() {
+    if (!ai || typeof ai.evaluateWinRate !== 'function') return;
+    const rate = ai.evaluateWinRate(game, BLACK);
+    if ($winRateVal) $winRateVal.textContent = `${rate}% (黑) / ${100 - rate}% (白)`;
+    if ($winRateBarFill) $winRateBarFill.style.width = `${rate}%`;
+  }
+
+  function runFullGameReview() {
+    if (game.moveHistory.length === 0 && savedHistory.length === 0) {
+      showFoulToast('⚠️ 当前无任何落子记录可复盘');
+      return;
+    }
+    const history = savedHistory.length > 0 ? savedHistory : game.moveHistory;
+    activeReviewData = ai.analyzeHistory(history, game.enableFoul);
+
+    if ($aiReviewContainer) $aiReviewContainer.classList.remove('hidden');
+    if ($replayCard) $replayCard.classList.remove('hidden');
+    isReplaying = true;
+
+    renderReviewList();
+    showFoulToast('🔍 全局 AI 复盘诊断完成！点击左侧步骤可详细拆解。');
+  }
+
+  function renderReviewList() {
+    if (!$aiReviewList) return;
+    $aiReviewList.innerHTML = '';
+
+    activeReviewData.forEach(item => {
+      const div = document.createElement('div');
+      div.className = `review-item ${item.quality}`;
+      const playerStr = item.player === BLACK ? '⚫' : '⚪';
+      const coordStr = `${String.fromCharCode(65 + item.col)}${15 - item.row}`;
+
+      div.innerHTML = `
+        <span class="review-step">第${item.step}手 ${playerStr} ${coordStr}</span>
+        <span class="review-comment">${item.comment}</span>
+      `;
+
+      div.addEventListener('click', () => {
+        selectedReviewStep = item;
+        showReplayStep(item.step);
+      });
+
+      $aiReviewList.appendChild(div);
+    });
+  }
+
+  // ========================
   // 事件处理
   // ========================
   function triggerAIMoveIfNeeded() {
@@ -260,6 +560,8 @@
         requestAnimationFrame(animLoop);
 
         updateUI();
+        updateWinRateUI();
+
         if (aiResult.winner !== undefined) {
           onGameEnd(aiResult);
         }
@@ -297,6 +599,53 @@
     const pos = canvasToBoard(e.offsetX, e.offsetY);
     if (!pos) return;
 
+    // 学习模式 —— 残局闯关解题逻辑
+    if (mode === 'study' && studySubTab === 'puzzle' && activePuzzle) {
+      const expectedSol = activePuzzle.solution[activePuzzleStep];
+      if (expectedSol && pos.row === expectedSol.row && pos.col === expectedSol.col) {
+        // 先尝试落子，并严格校验返回值
+        const res = game.placeStone(pos.row, pos.col);
+        if (!res.success) {
+          if (res.reason === 'foul' && res.message) showFoulToast(res.message);
+          return;
+        }
+
+        lastMovePos = { row: pos.row, col: pos.col };
+        stoneAnimStart = performance.now();
+        requestAnimationFrame(animLoop);
+
+        const currentStep = activePuzzleStep;
+        activePuzzleStep++;
+        updateUI();
+
+        if (activePuzzleStep >= activePuzzle.solution.length) {
+          showFoulToast('🎉 恭喜通关！你成功解开了本关杀局！');
+          onGameEnd({ winner: activePuzzle.player });
+        } else {
+          // 检查是否有对手 responses 回应
+          if (activePuzzle.responses && activePuzzle.responses[currentStep]) {
+            const oppResp = activePuzzle.responses[currentStep];
+            showFoulToast('✅ 答对了！对手防御回应中...');
+            setTimeout(() => {
+              const oppColor = activePuzzle.player === BLACK ? WHITE : BLACK;
+              game.board[oppResp.row][oppResp.col] = oppColor;
+              game.moveHistory.push({ row: oppResp.row, col: oppResp.col, player: oppColor });
+              lastMovePos = { row: oppResp.row, col: oppResp.col };
+              stoneAnimStart = performance.now();
+              requestAnimationFrame(animLoop);
+              updateUI();
+              showFoulToast('🛡️ 对手已强行封堵，请接着做出绝杀！');
+            }, 500);
+          } else {
+            showFoulToast('✅ 回答正确！请继续走下一步...');
+          }
+        }
+      } else {
+        showFoulToast('❌ 此步并非最佳杀法解，请点击「提示」重试！');
+      }
+      return;
+    }
+
     const result = game.placeStone(pos.row, pos.col);
     if (!result.success) {
       if (result.reason === 'foul' && result.message) {
@@ -308,7 +657,13 @@
     lastMovePos = { row: pos.row, col: pos.col };
     stoneAnimStart = performance.now();
     requestAnimationFrame(animLoop);
+
     updateUI();
+    updateWinRateUI();
+
+    if ($chkShowHints && $chkShowHints.checked) {
+      fetchAIHints();
+    }
 
     if (result.winner !== undefined) {
       onGameEnd(result);
@@ -390,15 +745,24 @@
     lastMovePos = game.moveHistory.length > 0
       ? game.moveHistory[game.moveHistory.length - 1]
       : null;
+    studyHints = [];
     render();
     updateUI();
+    updateWinRateUI();
   }
 
   function onRestart() {
     stopReplayAutoPlay();
+    stopOpeningDemo();
     isReplaying = false;
     savedHistory = [];
+    studyHints = [];
+    activeReviewData = [];
+    selectedReviewStep = null;
+
     if ($replayCard) $replayCard.classList.add('hidden');
+    if ($aiReviewContainer) $aiReviewContainer.classList.add('hidden');
+
     eveStop();
     game.reset();
     lastMovePos = null;
@@ -412,22 +776,29 @@
     if ($winOverlay) $winOverlay.classList.add('hidden');
     render();
     updateUI();
+    updateWinRateUI();
   }
 
   function setMode(newMode) {
     eveStop();
+    stopOpeningDemo();
     mode = newMode;
     $btnPvP.classList.toggle('active', mode === 'pvp');
     $btnPvE.classList.toggle('active', mode === 'pve');
     $btnEve.classList.toggle('active', mode === 'eve');
+    if ($btnStudy) $btnStudy.classList.toggle('active', mode === 'study');
 
     $aiSettings.classList.add('hidden');
     $eveSettings.classList.add('hidden');
+    if ($studyCard) $studyCard.classList.add('hidden');
 
     if (mode === 'pve') {
       $aiSettings.classList.remove('hidden');
     } else if (mode === 'eve') {
       $eveSettings.classList.remove('hidden');
+    } else if (mode === 'study') {
+      if ($studyCard) $studyCard.classList.remove('hidden');
+      switchStudyTab(studySubTab);
     }
 
     updatePlayerNames();
@@ -606,8 +977,80 @@
     drawBoard();
     drawStones(now);
     drawHover();
+    drawStudyHighlights();
     drawLastMove(scale);
     drawWinLine();
+  }
+
+  /** 绘制学习模式的各种交互高亮（导师推荐点、禁手雷达、复盘诊断标记） */
+  function drawStudyHighlights() {
+    // 1. 绘制导师推荐点
+    if (studyHints && studyHints.length > 0) {
+      studyHints.forEach(h => {
+        if (game.board[h.row][h.col] !== EMPTY) return;
+        const x = PADDING + h.col * CELL_SIZE;
+        const y = PADDING + h.row * CELL_SIZE;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x, y, STONE_RADIUS * 0.85, 0, Math.PI * 2);
+        ctx.fillStyle = h.rank === 1 ? 'rgba(212, 165, 74, 0.4)' : 'rgba(74, 144, 217, 0.35)';
+        ctx.fill();
+
+        ctx.strokeStyle = h.rank === 1 ? '#d4a54a' : '#4a90d9';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 12px var(--font-family, sans-serif)';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(h.rank === 1 ? '🥇' : (h.rank === 2 ? '🥈' : '🥉'), x, y);
+        ctx.restore();
+      });
+    }
+
+    // 2. 绘制黑棋禁手雷达（仅搜索盘面上已有棋子周边 2 格空位，提升性能）
+    if ($chkShowFoulRadar && $chkShowFoulRadar.checked && game.enableFoul && game.currentPlayer === BLACK && !game.gameOver) {
+      const candidates = ai._getNearbyEmpty(game, 2);
+      for (const pos of candidates) {
+        const foul = game.checkFoul(pos.row, pos.col, BLACK);
+        if (foul) {
+          const x = PADDING + pos.col * CELL_SIZE;
+          const y = PADDING + pos.row * CELL_SIZE;
+          ctx.save();
+          ctx.fillStyle = 'rgba(239, 68, 68, 0.8)';
+          ctx.font = '12px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('⚠️', x, y);
+          ctx.restore();
+        }
+      }
+    }
+
+    // 3. 绘制选中的复盘诊断标记
+    if (selectedReviewStep && isReplaying) {
+      const step = selectedReviewStep;
+      if (step.bestMove && (step.bestMove.row !== step.row || step.bestMove.col !== step.col)) {
+        // 高亮 AI 认为的最佳着法点
+        const bx = PADDING + step.bestMove.col * CELL_SIZE;
+        const by = PADDING + step.bestMove.row * CELL_SIZE;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(bx, by, STONE_RADIUS, 0, Math.PI * 2);
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.fillStyle = '#10b981';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('🌟', bx, by);
+        ctx.restore();
+      }
+    }
   }
 
   /** 绘制棋盘（木纹底色 + 网格线 + 星位） */
@@ -681,13 +1124,13 @@
       for (let c = 0; c < BOARD_SIZE; c++) {
         const stone = game.board[r][c];
         if (stone === EMPTY) continue;
-        
+
         let scale = 1;
         if (now && lastMovePos && lastMovePos.row === r && lastMovePos.col === c && stoneAnimStart > 0) {
           const progress = Math.min((now - stoneAnimStart) / ANIM_DURATION, 1);
           scale = 1 - Math.pow(1 - progress, 3); // ease-out cubic
         }
-        
+
         drawStone(r, c, stone, scale);
       }
     }
@@ -761,9 +1204,9 @@
     ctx.save();
     ctx.translate(x, y);
     ctx.scale(scale, scale);
-    
+
     ctx.fillStyle = stone === BLACK ? '#d4a54a' : '#4a90d9';
-    
+
     // 显示手数：复盘模式显示当前复盘步数 replayStep，对局模式显示当前总手数
     const moveNum = isReplaying ? replayStep : game.moveHistory.length;
     if (moveNum > 0) {
@@ -772,7 +1215,7 @@
       ctx.textBaseline = 'middle';
       ctx.fillText(moveNum, 0, 1);
     }
-    
+
     ctx.restore();
   }
 
@@ -848,6 +1291,9 @@
     } else if (mode === 'eve') {
       $blackName.textContent = aiName(BLACK, eveBlackAI.level);
       $whiteName.textContent = aiName(WHITE, eveWhiteAI.level);
+    } else if (mode === 'study') {
+      $blackName.textContent = '学员 / 黑方';
+      $whiteName.textContent = '导师 / 白方';
     } else {
       $blackName.textContent = '玩家 1 (黑)';
       $whiteName.textContent = '玩家 2 (白)';
@@ -903,6 +1349,7 @@
     if ($btnPvP) $btnPvP.disabled = isPlaying;
     if ($btnPvE) $btnPvE.disabled = isPlaying;
     if ($btnEve) $btnEve.disabled = isPlaying;
+    if ($btnStudy) $btnStudy.disabled = isPlaying;
     $playerColorButtons.forEach(btn => btn.disabled = isPlaying);
     $diffButtons.forEach(btn => btn.disabled = isPlaying);
     $eveBlackButtons.forEach(btn => btn.disabled = isPlaying);
@@ -936,6 +1383,14 @@
         }
       } else if (mode === 'pve' && game.moveHistory.length === 0 && playerColor === WHITE) {
         $statusText.textContent = '选好规则后，点击「🚀 让 AI 下第一步」';
+      } else if (mode === 'study') {
+        if (studySubTab === 'puzzle') {
+          $statusText.textContent = '🧩 正在进行残局特训，寻找最佳杀招落子';
+        } else if (studySubTab === 'opening') {
+          $statusText.textContent = '📚 正在学习连珠开局定式';
+        } else {
+          $statusText.textContent = '💡 学习模式：开启 AI 导师，掌握最强对局策略';
+        }
       } else if (aiThinking) {
         $statusText.innerHTML = 'AI 思考中...<span class="ai-thinking-indicator"></span>';
       } else {
