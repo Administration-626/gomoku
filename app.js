@@ -410,10 +410,16 @@
         loadOpening(0);
       }
     } else if (tabName === 'mentor') {
-      ai = new GomokuAI('medium'); // 默认中等
+      ai = new GomokuAI('medium');
       const $mentorDiffSelect = document.getElementById('mentor-diff-select');
       if ($mentorDiffSelect) $mentorDiffSelect.value = 'medium';
-      onRestart();
+      // 如果盘面上已有对局落子，保持当前盘面，决不主动清空！
+      if (game.moveHistory.length === 0) {
+        onRestart();
+      } else {
+        render();
+        updateUI();
+      }
       updateWinRateUI();
     }
   }
@@ -817,6 +823,8 @@
   }
 
   function setMode(newMode) {
+    if (mode === newMode) return; // 重复点击当前模式按钮时保持已有局势，决不清空对局
+
     eveStop();
     stopOpeningDemo();
     mode = newMode;
@@ -836,6 +844,7 @@
     } else if (mode === 'study') {
       if ($studyCard) $studyCard.classList.remove('hidden');
       switchStudyTab(studySubTab);
+      return;
     }
 
     updatePlayerNames();
