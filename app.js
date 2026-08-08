@@ -1085,25 +1085,38 @@
         const medalIcon = rank === 1 ? '🥇' : (rank === 2 ? '🥈' : '🥉');
         ctx.fillText(medalIcon, x, y);
 
-        // E. 三种推荐点全部在上方绘制高对比常驻悬浮卡片 (Popup Card)
+        // E. 三种推荐点采用三向错位防重叠算法 (3-Way Non-Overlapping Offset)
         const coordText = `${String.fromCharCode(65 + h.col)}${15 - h.row}`;
         const cardTitle = `${medalIcon} ${rank}. ${coordText}`;
-        const cardReason = h.reason || (isTop1 ? '绝杀/最佳攻击' : '防守/展开');
+        const cardReason = h.reason || (isTop1 ? '绝杀/攻杀' : (isTop2 ? '防守' : '拓广'));
         const fullText = `${cardTitle} ${cardReason}`;
 
         ctx.font = 'bold 11px var(--font-family, sans-serif)';
         const metrics = ctx.measureText(fullText);
-        const cardW = metrics.width + 16;
-        const cardH = 22;
-        const cardX = x - cardW / 2;
-        // 三个气泡高度错开，防止重叠
-        const cardY = y - STONE_RADIUS - (isTop1 ? 30 : (isTop2 ? 26 : 22));
+        const cardW = metrics.width + 14;
+        const cardH = 20;
 
-        // 气泡阴影与实体背景
+        let cardX = x - cardW / 2;
+        let cardY = y - STONE_RADIUS - 26; // 默认 Top 1 向上弹框
+
+        if (rank === 2) {
+          // Top 2 气泡向下避开正上方
+          cardY = y + STONE_RADIUS + 8;
+        } else if (rank === 3) {
+          // Top 3 气泡向侧边/上方更高处错开
+          cardX = x + STONE_RADIUS + 6;
+          cardY = y - cardH / 2;
+        }
+
+        // 边界吸附约束：保证绝不出界
+        cardX = Math.max(8, Math.min(CANVAS_SIZE - cardW - 8, cardX));
+        cardY = Math.max(8, Math.min(CANVAS_SIZE - cardH - 8, cardY));
+
+        // 气泡阴影与实体漆黑高对比背景
         ctx.save();
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
-        ctx.shadowBlur = 10;
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.95)'; // 超高对比漆黑底色
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.96)';
         ctx.strokeStyle = mainColor;
         ctx.lineWidth = isTop1 ? 2 : 1.5;
 
@@ -1121,7 +1134,7 @@
         ctx.fillStyle = mainColor;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(fullText, x, cardY + cardH / 2);
+        ctx.fillText(fullText, cardX + cardW / 2, cardY + cardH / 2);
 
         ctx.restore();
       });
