@@ -1020,8 +1020,11 @@
   }
 
   /** 绘制学习模式的各种交互高亮（导师推荐点、禁手雷达、复盘诊断标记） */
-  function drawStudyHighlights() {
-    // 1. 绘制导师推荐点
+  function drawStudyHighlights(now) {
+    const animNow = now || performance.now();
+    const pulse = (Math.sin(animNow / 150) + 1) / 2; // 0 ~ 1 动态高频脉冲
+
+    // 1. 绘制导师推荐点（全屏高对比醒目指引）
     if (studyHints && studyHints.length > 0) {
       studyHints.forEach(h => {
         if (game.board[h.row][h.col] !== EMPTY) return;
@@ -1029,22 +1032,104 @@
         const y = PADDING + h.row * CELL_SIZE;
 
         ctx.save();
+
+        const rank = h.rank; // 1, 2, 3
+        const isTop1 = rank === 1;
+        const isTop2 = rank === 2;
+
+        // 主主题色：1=亮金, 2=闪耀蓝, 3=炫彩紫
+        const mainColor = isTop1 ? '#fbbf24' : (isTop2 ? '#38bdf8' : '#c084fc');
+        const glowColor = isTop1 ? 'rgba(251, 191, 36, 0.9)' : (isTop2 ? 'rgba(56, 189, 248, 0.85)' : 'rgba(192, 132, 252, 0.8)');
+        const bgBadgeColor = isTop1 ? '#78350f' : (isTop2 ? '#0c4a6e' : '#581c87'); // 深色质感底盘
+
+        // A. 绘制底衬超大半透明光束波纹 (Radial Light Beacon)
+        const beaconRadius = STONE_RADIUS * (isTop1 ? (1.6 + pulse * 0.35) : (1.35 + pulse * 0.2));
+        const bgGrad = ctx.createRadialGradient(x, y, 2, x, y, beaconRadius);
+        bgGrad.addColorStop(0, glowColor);
+        bgGrad.addColorStop(0.6, glowColor.replace('0.9', '0.4').replace('0.85', '0.35').replace('0.8', '0.3'));
+        bgGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+        ctx.fillStyle = bgGrad;
         ctx.beginPath();
-        ctx.arc(x, y, STONE_RADIUS * 0.85, 0, Math.PI * 2);
-        ctx.fillStyle = h.rank === 1 ? 'rgba(212, 165, 74, 0.4)' : 'rgba(74, 144, 217, 0.35)';
+        ctx.arc(x, y, beaconRadius, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.strokeStyle = h.rank === 1 ? '#d4a54a' : '#4a90d9';
+        // B. 绘制双层脉冲虚线/实线光环
+        ctx.beginPath();
+        ctx.arc(x, y, STONE_RADIUS * (1.1 + pulse * 0.15), 0, Math.PI * 2);
+        ctx.strokeStyle = mainColor;
+        ctx.lineWidth = isTop1 ? 3 : 2;
+        ctx.shadowColor = mainColor;
+        ctx.shadowBlur = isTop1 ? 18 + pulse * 10 : 10;
+        if (isTop1) ctx.setLineDash([4, 3]); // 第一推荐点带动态虚线圈
+        ctx.stroke();
+        ctx.setLineDash([]); // 还原线型
+
+        // C. 中心高对比度实体圆盘徽章
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillStyle = bgBadgeColor;
+        ctx.strokeStyle = mainColor;
         ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(x, y, STONE_RADIUS * 0.88, 0, Math.PI * 2);
+        ctx.fill();
         ctx.stroke();
 
+        // D. 绘制标号/奖牌 (大号醒目图标)
+        ctx.shadowBlur = 0;
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 12px var(--font-family, sans-serif)';
+        ctx.font = 'bold 14px var(--font-family, sans-serif)';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(h.rank === 1 ? '🥇' : (h.rank === 2 ? '🥈' : '🥉'), x, y);
+        const medalIcon = rank === 1 ? '🥇' : (rank === 2 ? '🥈' : '🥉');
+        ctx.fillText(medalIcon, x, y);
+
+        // E. 三种推荐点全部在上方绘制高对比常驻悬浮卡片 (Popup Card)
+        const coordText = `${String.fromCharCode(65 + h.col)}${15 - h.row}`;
+        const cardTitle = `${medalIcon} ${rank}. ${coordText}`;
+        const cardReason = h.reason || (isTop1 ? '绝杀/最佳攻击' : '防守/展开');
+        const fullText = `${cardTitle} ${cardReason}`;
+
+        ctx.font = 'bold 11px var(--font-family, sans-serif)';
+        const metrics = ctx.measureText(fullText);
+        const cardW = metrics.width + 16;
+        const cardH = 22;
+        const cardX = x - cardW / 2;
+        // 三个气泡高度错开，防止重叠
+        const cardY = y - STONE_RADIUS - (isTop1 ? 30 : (isTop2 ? 26 : 22));
+
+        // 气泡阴影与实体背景
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.95)'; // 超高对比漆黑底色
+        ctx.strokeStyle = mainColor;
+        ctx.lineWidth = isTop1 ? 2 : 1.5;
+
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(cardX, cardY, cardW, cardH, 4);
+        } else {
+          ctx.rect(cardX, cardY, cardW, cardH);
+        }
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+
+        // 气泡高亮文字
+        ctx.fillStyle = mainColor;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(fullText, x, cardY + cardH / 2);
+
         ctx.restore();
       });
+
+      // 持续请求动画帧让光环呼吸
+      if ($chkShowHints && $chkShowHints.checked) {
+        requestAnimationFrame(() => render());
+      }
     }
 
     // 2. 绘制黑棋禁手雷达（仅搜索盘面上已有棋子周边 2 格空位，提升性能）
