@@ -1098,7 +1098,7 @@
         const medalIcon = rank === 1 ? '🥇' : (rank === 2 ? '🥈' : '🥉');
         ctx.fillText(medalIcon, x, y);
 
-        // E. 三种推荐点采用三向错位防重叠算法 (3-Way Non-Overlapping Offset)
+        // E. 彻底解决与建议棋子重合：大间距错位气泡 (Non-Overlapping Spaced Tooltip)
         const coordText = `${String.fromCharCode(65 + h.col)}${15 - h.row}`;
         const cardTitle = `${medalIcon} ${rank}. ${coordText}`;
         const cardReason = h.reason || (isTop1 ? '绝杀/攻杀' : (isTop2 ? '防守' : '拓广'));
@@ -1106,24 +1106,35 @@
 
         ctx.font = 'bold 11px var(--font-family, sans-serif)';
         const metrics = ctx.measureText(fullText);
-        const cardW = metrics.width + 14;
+        const cardW = metrics.width + 12;
         const cardH = 20;
 
         let cardX = x - cardW / 2;
-        let cardY = y - STONE_RADIUS - 26; // 默认 Top 1 向上弹框
+        let cardY = y - STONE_RADIUS - 34; // Top 1 向上留出 34px 安全间距，彻底避开建议棋子！
 
         if (rank === 2) {
-          // Top 2 气泡向下避开正上方
-          cardY = y + STONE_RADIUS + 8;
+          // Top 2 气泡向下留出 18px 间距避开棋子
+          cardY = y + STONE_RADIUS + 18;
         } else if (rank === 3) {
-          // Top 3 气泡向侧边/上方更高处错开
-          cardX = x + STONE_RADIUS + 6;
+          // Top 3 气泡向右侧拉开 16px 间距
+          cardX = x + STONE_RADIUS + 16;
           cardY = y - cardH / 2;
         }
 
         // 边界吸附约束：保证绝不出界
-        cardX = Math.max(8, Math.min(CANVAS_SIZE - cardW - 8, cardX));
-        cardY = Math.max(8, Math.min(CANVAS_SIZE - cardH - 8, cardY));
+        cardX = Math.max(6, Math.min(CANVAS_SIZE - cardW - 6, cardX));
+        cardY = Math.max(6, Math.min(CANVAS_SIZE - cardH - 6, cardY));
+
+        // 绘制到建议棋子中心的微型指示线 (Connecting Pointer Line)
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(cardX + cardW / 2, cardY + (rank === 2 ? 0 : (rank === 3 ? cardH / 2 : cardH)));
+        ctx.strokeStyle = mainColor;
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.45;
+        ctx.stroke();
+        ctx.restore();
 
         // 气泡阴影与实体漆黑高对比背景
         ctx.save();
