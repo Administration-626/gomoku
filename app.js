@@ -1033,9 +1033,8 @@
   }
 
   /** 绘制学习模式的各种交互高亮（导师推荐点、禁手雷达、复盘诊断标记） */
-  function drawStudyHighlights(now) {
-    const animNow = now || performance.now();
-    const pulse = (Math.sin(animNow / 150) + 1) / 2; // 0 ~ 1 动态高频脉冲
+  function drawStudyHighlights() {
+    const pulse = 0.5; // 采用静态高对比度光晕，彻底消除闪烁与抖动感
 
     // 1. 绘制导师推荐点（全屏高对比醒目指引）
     if (studyHints && studyHints.length > 0) {
@@ -1067,14 +1066,14 @@
         ctx.arc(x, y, beaconRadius, 0, Math.PI * 2);
         ctx.fill();
 
-        // B. 绘制双层脉冲虚线/实线光环
+        // B. 绘制双层虚线/实线光环
         ctx.beginPath();
         ctx.arc(x, y, STONE_RADIUS * (1.1 + pulse * 0.15), 0, Math.PI * 2);
         ctx.strokeStyle = mainColor;
         ctx.lineWidth = isTop1 ? 3 : 2;
         ctx.shadowColor = mainColor;
         ctx.shadowBlur = isTop1 ? 18 + pulse * 10 : 10;
-        if (isTop1) ctx.setLineDash([4, 3]); // 第一推荐点带动态虚线圈
+        if (isTop1) ctx.setLineDash([4, 3]); // 第一推荐点带虚线圈
         ctx.stroke();
         ctx.setLineDash([]); // 还原线型
 
@@ -1162,11 +1161,6 @@
 
         ctx.restore();
       });
-
-      // 持续请求动画帧让光环呼吸
-      if ($chkShowHints && $chkShowHints.checked) {
-        requestAnimationFrame(() => render());
-      }
     }
 
     // 2. 绘制黑棋禁手雷达（仅搜索盘面上已有棋子周边 2 格空位，提升性能）
