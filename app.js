@@ -204,7 +204,6 @@
       $chkFoul.addEventListener('change', () => {
         globalFoulPreference = $chkFoul.checked;
         game.enableFoul = globalFoulPreference;
-        showFoulToast(`⚙️ 黑棋禁手规则已【${globalFoulPreference ? '开启' : '关闭'}】`);
       });
     }
 
@@ -322,7 +321,6 @@
       ai = new GomokuAI('medium');
       $mentorDiffSelect.addEventListener('change', (e) => {
         ai = new GomokuAI(e.target.value);
-        showFoulToast(`💡 AI 导师难度已设置为【${aiLevelLabel(e.target.value)}】`);
       });
     }
 
@@ -509,11 +507,6 @@
     if (game.gameOver) return;
     const topMoves = ai.getTopMoves(game, 3);
     studyHints = topMoves;
-    if (topMoves.length > 0) {
-      const best = topMoves[0];
-      const coordStr = `${String.fromCharCode(65 + best.col)}${15 - best.row}`;
-      showFoulToast(`💡 导师推荐: ${coordStr} — ${best.reason}`);
-    }
     render();
   }
 
