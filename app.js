@@ -1027,10 +1027,24 @@
 
   /** 绘制学习模式的各种交互高亮（导师推荐点、禁手雷达、复盘诊断标记） */
   function drawStudyHighlights() {
-    const pulse = 0.5; // 采用静态高对比度光晕，彻底消除闪烁与抖动感
+    const pulse = 0.5;
 
     // 1. 绘制导师推荐点（全屏高对比醒目指引）
     if (studyHints && studyHints.length > 0) {
+      // 存储全部候选点的圆盘中心与半径，用于智能碰撞判断
+      const circles = studyHints.map(h => {
+        return {
+          row: h.row,
+          col: h.col,
+          x: PADDING + h.col * CELL_SIZE,
+          y: PADDING + h.row * CELL_SIZE,
+          r: STONE_RADIUS + 4
+        };
+      });
+
+      // 存储已生成的 Tooltip AABB 框 [{left, top, right, bottom}]
+      const placedBoxes = [];
+
       studyHints.forEach(h => {
         if (game.board[h.row][h.col] !== EMPTY) return;
         const x = PADDING + h.col * CELL_SIZE;
@@ -1048,7 +1062,7 @@
         const bgBadgeColor = isTop1 ? '#78350f' : (isTop2 ? '#0c4a6e' : '#581c87'); // 深色质感底盘
 
         // A. 绘制底衬超大半透明光束波纹 (Radial Light Beacon)
-        const beaconRadius = STONE_RADIUS * (isTop1 ? (1.6 + pulse * 0.35) : (1.35 + pulse * 0.2));
+        const beaconRadius = STONE_RADIUS * (isTop1 ? 1.6 : 1.35);
         const bgGrad = ctx.createRadialGradient(x, y, 2, x, y, beaconRadius);
         bgGrad.addColorStop(0, glowColor);
         bgGrad.addColorStop(0.6, glowColor.replace('0.9', '0.4').replace('0.85', '0.35').replace('0.8', '0.3'));
@@ -1061,14 +1075,14 @@
 
         // B. 绘制双层虚线/实线光环
         ctx.beginPath();
-        ctx.arc(x, y, STONE_RADIUS * (1.1 + pulse * 0.15), 0, Math.PI * 2);
+        ctx.arc(x, y, STONE_RADIUS * 1.1, 0, Math.PI * 2);
         ctx.strokeStyle = mainColor;
         ctx.lineWidth = isTop1 ? 3 : 2;
         ctx.shadowColor = mainColor;
-        ctx.shadowBlur = isTop1 ? 18 + pulse * 10 : 10;
-        if (isTop1) ctx.setLineDash([4, 3]); // 第一推荐点带虚线圈
+        ctx.shadowBlur = isTop1 ? 18 : 10;
+        if (isTop1) ctx.setLineDash([4, 3]);
         ctx.stroke();
-        ctx.setLineDash([]); // 还原线型
+        ctx.setLineDash([]);
 
         // C. 中心高对比度实体圆盘徽章
         ctx.shadowBlur = 8;
@@ -1090,45 +1104,100 @@
         const medalIcon = rank === 1 ? '🥇' : (rank === 2 ? '🥈' : '🥉');
         ctx.fillText(medalIcon, x, y);
 
-        // E. 彻底解决与建议棋子重合：大间距错位气泡 (Non-Overlapping Spaced Tooltip)
+        // E. 智能无碰撞排版引擎 (Collision-Free Smart Placement)
         const coordText = `${String.fromCharCode(65 + h.col)}${15 - h.row}`;
         const cardTitle = `${medalIcon} ${rank}. ${coordText}`;
-        const cardReason = h.reason || (isTop1 ? '绝杀/攻杀' : (isTop2 ? '防守' : '拓广'));
+        const cardReason = h.reason || (isTop1 ? '绝杀' : (isTop2 ? '防守' : '拓广'));
         const fullText = `${cardTitle} ${cardReason}`;
 
         ctx.font = 'bold 11px var(--font-family, sans-serif)';
         const metrics = ctx.measureText(fullText);
-        const cardW = metrics.width + 12;
+        const cardW = metrics.width + 14;
         const cardH = 20;
+        const gap = 16; // 离建议棋子边缘的物理间距，确保绝对不覆盖建议棋子！
 
-        let cardX = x - cardW / 2;
-        let cardY = y - STONE_RADIUS - 34; // Top 1 向上留出 34px 安全间距，彻底避开建议棋子！
+        // 定义 4 个候选方向 (Top, Bottom, Right, Left)
+        const candidatePosList = [
+          { dir: 'top',    cx: x - cardW / 2, cy: y - STONE_RADIUS - gap - cardH, px: x, py: y - STONE_RADIUS },
+          { dir: 'bottom', cx: x - cardW / 2, cy: y + STONE_RADIUS + gap,        px: x, py: y + STONE_RADIUS },
+          { dir: 'right',  cx: x + STONE_RADIUS + gap, cy: y - cardH / 2,        px: x + STONE_RADIUS, py: y },
+          { dir: 'left',   cx: x - STONE_RADIUS - gap - cardW, cy: y - cardH / 2, px: x - STONE_RADIUS, py: y }
+        ];
 
-        if (rank === 2) {
-          // Top 2 气泡向下留出 18px 间距避开棋子
-          cardY = y + STONE_RADIUS + 18;
-        } else if (rank === 3) {
-          // Top 3 气泡向右侧拉开 16px 间距
-          cardX = x + STONE_RADIUS + 16;
-          cardY = y - cardH / 2;
-        }
+        // 挑选得分最高无碰撞的方向
+        let bestCandidate = null;
+        let bestScore = -Infinity;
 
-        // 边界吸附约束：保证绝不出界
-        cardX = Math.max(6, Math.min(CANVAS_SIZE - cardW - 6, cardX));
-        cardY = Math.max(6, Math.min(CANVAS_SIZE - cardH - 6, cardY));
+        candidatePosList.forEach(cand => {
+          let score = 0;
 
-        // 绘制到建议棋子中心的微型指示线 (Connecting Pointer Line)
+          // 基础倾向分
+          if (rank === 1 && cand.dir === 'top') score += 1000;
+          else if (rank === 2 && cand.dir === 'bottom') score += 1000;
+          else if (rank === 3 && cand.dir === 'right') score += 1000;
+          else if (cand.dir === 'left') score += 500;
+
+          const box = {
+            left: cand.cx,
+            top: cand.cy,
+            right: cand.cx + cardW,
+            bottom: cand.cy + cardH
+          };
+
+          // 1. 检查是否与已放置的 Tooltip 框碰撞
+          placedBoxes.forEach(pBox => {
+            const overlapX = !(box.right < pBox.left || box.left > pBox.right);
+            const overlapY = !(box.bottom < pBox.top || box.top > pBox.bottom);
+            if (overlapX && overlapY) {
+              score -= 10000; // 严重扣分！
+            }
+          });
+
+          // 2. 检查是否与任何推荐点的圆盘（包含自身）重叠遮挡！
+          circles.forEach(c => {
+            const closestX = Math.max(box.left, Math.min(c.x, box.right));
+            const closestY = Math.max(box.top, Math.min(c.y, box.bottom));
+            const distX = c.x - closestX;
+            const distY = c.y - closestY;
+            if ((distX * distX + distY * distY) < (c.r + 4) * (c.r + 4)) {
+              score -= 8000; // 重大遮挡扣分！
+            }
+          });
+
+          // 3. 边界超出扣分
+          if (box.left < 4 || box.right > CANVAS_SIZE - 4 || box.top < 4 || box.bottom > CANVAS_SIZE - 4) {
+            score -= 5000;
+          }
+
+          if (score > bestScore) {
+            bestScore = score;
+            bestCandidate = { ...cand, box };
+          }
+        });
+
+        const finalCardX = Math.max(4, Math.min(CANVAS_SIZE - cardW - 4, bestCandidate.cx));
+        const finalCardY = Math.max(4, Math.min(CANVAS_SIZE - cardH - 4, bestCandidate.cy));
+
+        // 记住本次已占用的 AABB
+        placedBoxes.push({
+          left: finalCardX,
+          top: finalCardY,
+          right: finalCardX + cardW,
+          bottom: finalCardY + cardH
+        });
+
+        // 绘制微型虚线连接引线
         ctx.save();
         ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(cardX + cardW / 2, cardY + (rank === 2 ? 0 : (rank === 3 ? cardH / 2 : cardH)));
+        ctx.moveTo(bestCandidate.px, bestCandidate.py);
+        ctx.lineTo(finalCardX + cardW / 2, finalCardY + cardH / 2);
         ctx.strokeStyle = mainColor;
         ctx.lineWidth = 1;
-        ctx.globalAlpha = 0.45;
+        ctx.globalAlpha = 0.5;
         ctx.stroke();
         ctx.restore();
 
-        // 气泡阴影与实体漆黑高对比背景
+        // 气泡卡片漆黑高对比背景
         ctx.save();
         ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
         ctx.shadowBlur = 8;
@@ -1138,9 +1207,9 @@
 
         ctx.beginPath();
         if (typeof ctx.roundRect === 'function') {
-          ctx.roundRect(cardX, cardY, cardW, cardH, 4);
+          ctx.roundRect(finalCardX, finalCardY, cardW, cardH, 4);
         } else {
-          ctx.rect(cardX, cardY, cardW, cardH);
+          ctx.rect(finalCardX, finalCardY, cardW, cardH);
         }
         ctx.fill();
         ctx.stroke();
@@ -1150,7 +1219,7 @@
         ctx.fillStyle = mainColor;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(fullText, cardX + cardW / 2, cardY + cardH / 2);
+        ctx.fillText(fullText, finalCardX + cardW / 2, finalCardY + cardH / 2);
 
         ctx.restore();
       });
