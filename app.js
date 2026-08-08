@@ -83,6 +83,7 @@
   let selectedReviewStep = null;
 
   let playerColor = BLACK; // 默认玩家执黑先手 (BLACK | WHITE)
+  let globalFoulPreference = false; // 用户全局禁手规则勾选记忆（切换模式时绝不重置）
   let stats = { black: 0, white: 0, draw: 0 };
 
   function updateStats() {
@@ -199,9 +200,11 @@
     if ($btnExportDebug) $btnExportDebug.addEventListener('click', onExportDebug);
 
     if ($chkFoul) {
+      globalFoulPreference = $chkFoul.checked;
       $chkFoul.addEventListener('change', () => {
-        game.enableFoul = $chkFoul.checked;
-        console.log('[Foul Rule Toggle]', game.enableFoul ? 'ENABLED' : 'DISABLED');
+        globalFoulPreference = $chkFoul.checked;
+        game.enableFoul = globalFoulPreference;
+        showFoulToast(`⚙️ 黑棋禁手规则已【${globalFoulPreference ? '开启' : '关闭'}】`);
       });
     }
 
@@ -808,6 +811,7 @@
 
     eveStop();
     game.reset();
+    game.enableFoul = globalFoulPreference; // 重置对局时完美继承玩家显式勾选的禁手配置！
     lastMovePos = null;
     hoverPos = null;
     evePaused = false;
@@ -1485,7 +1489,7 @@
 
     // 1. 禁手规则复选框
     if ($chkFoul) {
-      $chkFoul.checked = game.enableFoul;
+      $chkFoul.checked = globalFoulPreference;
       $chkFoul.disabled = isPlaying;
     }
 
