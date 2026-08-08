@@ -700,9 +700,8 @@
     updateUI();
     updateWinRateUI();
 
-    if ($chkShowHints && $chkShowHints.checked) {
-      fetchAIHints();
-    }
+    // 玩家手防落子后直接清空隐藏旧的推荐卡片，绝不在对方思考前再次弹窗！
+    studyHints = [];
 
     if (result.winner !== undefined) {
       onGameEnd(result);
