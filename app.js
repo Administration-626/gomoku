@@ -534,7 +534,8 @@
   // 事件处理
   // ========================
   function triggerAIMoveIfNeeded() {
-    if (mode !== 'pve' || game.gameOver || aiThinking) return;
+    const isPvEorMentor = (mode === 'pve' || (mode === 'study' && studySubTab === 'mentor'));
+    if (!isPvEorMentor || game.gameOver || aiThinking) return;
     const aiColor = playerColor === BLACK ? WHITE : BLACK;
     if (game.currentPlayer !== aiColor) return;
 
@@ -561,6 +562,10 @@
 
         updateUI();
         updateWinRateUI();
+
+        if ($chkShowHints && $chkShowHints.checked) {
+          fetchAIHints();
+        }
 
         if (aiResult.winner !== undefined) {
           onGameEnd(aiResult);
@@ -594,7 +599,8 @@
     if (game.gameOver || aiThinking) return;
     // 如果轮到 AI 走，拒绝玩家手防
     const aiColor = playerColor === BLACK ? WHITE : BLACK;
-    if (mode === 'pve' && game.currentPlayer === aiColor) return;
+    const isPvEorMentor = (mode === 'pve' || (mode === 'study' && studySubTab === 'mentor'));
+    if (isPvEorMentor && game.currentPlayer === aiColor) return;
 
     const pos = canvasToBoard(e.offsetX, e.offsetY);
     if (!pos) return;
@@ -1356,9 +1362,10 @@
     $eveWhiteButtons.forEach(btn => btn.disabled = isPlaying);
     if ($pveSpeed) $pveSpeed.disabled = isPlaying;
 
-    // 3. 人机模式让 AI 先手按钮控制
+    // 3. 人机模式与导师模式让 AI 先手按钮控制
     if ($btnPvEStart) {
-      const showAiStartBtn = (mode === 'pve' && playerColor === WHITE && game.moveHistory.length === 0 && !aiThinking);
+      const isPvEorMentor = (mode === 'pve' || (mode === 'study' && studySubTab === 'mentor'));
+      const showAiStartBtn = (isPvEorMentor && playerColor === WHITE && game.moveHistory.length === 0 && !aiThinking);
       $btnPvEStart.classList.toggle('hidden', !showAiStartBtn);
     }
 
